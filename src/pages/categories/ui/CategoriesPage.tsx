@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { listCategories, updateCategory, createCategory, deleteCategory } from '@/entities/category/api/queries';
 import type { Category } from '@/entities/category/model/types';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/shared/ui/ui/table';
+import { Button } from '@/shared/ui/ui/button';
 
 export function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -148,13 +150,14 @@ export function CategoriesPage() {
               />
             </div>
 
-            <button 
+            <Button 
               onClick={handleCreate}
               disabled={!isFormValid}
-              className="btn-primary w-full flex items-center justify-center gap-2 mt-4"
+              className="w-full"
+              data-icon="inline-start"
             >
-              <Plus className="w-4 h-4" /> Tambahkan
-            </button>
+              <Plus /> Tambahkan
+            </Button>
           </div>
         </div>
 
@@ -165,32 +168,32 @@ export function CategoriesPage() {
             <span className="text-sm font-medium text-[#1A1A1A]/50">{categories.length} entri</span>
           </div>
 
-          <div className="bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded-lg overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[#1A1A1A]/10 bg-[#1A1A1A]/[0.02]">
-                  <th className="table-header pl-6">Material</th>
-                  <th className="table-header w-24">Satuan</th>
-                  <th className="table-header w-32">Harga Dasar (Rp)</th>
-                  <th className="table-header w-12 text-center"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1A1A1A]/5">
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Satuan</TableHead>
+                  <TableHead>Harga Dasar (Rp)</TableHead>
+                  <TableHead className="text-center w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {loading && categories.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-[#1A1A1A]/40">Memuat ledger...</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">Memuat ledger...</TableCell>
+                  </TableRow>
                 ) : categories.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-[#1A1A1A]/40">Belum ada kategori terdaftar.</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">Belum ada kategori terdaftar.</TableCell>
+                  </TableRow>
                 ) : (
                   categories.map(cat => (
-                    <tr key={cat.id} className="group hover:bg-[#1A1A1A]/[0.02] transition-colors">
-                      <td className="table-cell pl-6 align-middle">
+                    <TableRow key={cat.id}>
+                      <TableCell>
                         <input 
                           type="text" 
-                          className="w-full bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded px-3 py-2 font-medium text-[#1A1A1A] placeholder:text-[#1A1A1A]/30 focus:outline-none focus:ring-1 focus:ring-[#1A1A1A]/30 focus:border-[#1A1A1A]/20 transition-colors" 
+                          className="w-full bg-background border border-input rounded px-3 py-2 font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" 
                           value={cat.name}
                           onChange={e => setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, name: e.target.value } : c))}
                           onBlur={e => {
@@ -199,46 +202,46 @@ export function CategoriesPage() {
                             }
                           }}
                         />
-                      </td>
-                      <td className="table-cell align-middle">
-                        <div className="flex bg-[#1A1A1A]/10 p-0.5 rounded-full w-fit">
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex bg-muted p-0.5 rounded-full w-fit">
                           <button 
-                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${cat.unit === 'kg' ? 'bg-[#F9F9F8] shadow-sm text-[#1A1A1A]' : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'}`}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${cat.unit === 'kg' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             onClick={() => handleUpdate(cat.id, 'unit', 'kg')}
                           >
                             KG
                           </button>
                           <button 
-                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${cat.unit === 'pc' ? 'bg-[#F9F9F8] shadow-sm text-[#1A1A1A]' : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'}`}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${cat.unit === 'pc' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             onClick={() => handleUpdate(cat.id, 'unit', 'pc')}
                           >
                             PC
                           </button>
                         </div>
-                      </td>
-                      <td className="table-cell align-middle">
+                      </TableCell>
+                      <TableCell>
                         <input 
                           type="number" 
-                          className="w-full bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded px-3 py-2 tabular-nums text-[#1A1A1A] placeholder:text-[#1A1A1A]/30 focus:outline-none focus:ring-1 focus:ring-[#1A1A1A]/30 focus:border-[#1A1A1A]/20 transition-colors" 
+                          className="w-full bg-background border border-input rounded px-3 py-2 tabular-nums text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" 
                           value={cat.default_rate}
                           onChange={e => setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, default_rate: parseFloat(e.target.value) || 0 } : c))}
                           onBlur={e => handleUpdate(cat.id, 'default_rate', parseFloat(e.target.value) || 0)}
                         />
-                      </td>
-                      <td className="table-cell align-middle text-center pr-4">
+                      </TableCell>
+                      <TableCell className="text-center">
                         <button 
                           onClick={() => handleDelete(cat.id)} 
-                          className="p-1.5 text-[#1A1A1A]/20 hover:text-red-500 hover:bg-red-50 transition-colors rounded opacity-0 group-hover:opacity-100"
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded"
                           title="Hapus Kategori"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="size-4" />
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           <p className="text-[#1A1A1A]/40 text-xs leading-relaxed max-w-xl">

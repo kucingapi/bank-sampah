@@ -7,6 +7,7 @@ import type { Event } from '@/entities/event/model/types';
 import { formatCurrency } from '@/shared/lib/format';
 import { getDb } from '@/shared/api';
 import { Button } from '@/shared/ui/ui/button';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableFooter } from '@/shared/ui/ui/table';
 
 interface Props {
   eventId: string;
@@ -128,37 +129,37 @@ export function VendorReportPage({ eventId }: Props) {
          </div>
       </header>
 
-      <div className="bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded-lg overflow-hidden print:border-none print:bg-transparent">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-[#1A1A1A]/10">
-              <th className="table-header">Kategori Material</th>
-              <th className="table-header text-right">Total Berat</th>
-              <th className="table-header text-right">Total Biaya (Nasabah)</th>
-              <th className="table-header w-64 pl-8 print:hidden">Alokasi Vendor</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#1A1A1A]/5">
+      <div className="border rounded-lg overflow-hidden print:border-none">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Kategori Material</TableHead>
+              <TableHead className="text-right">Total Berat</TableHead>
+              <TableHead className="text-right">Total Biaya (Nasabah)</TableHead>
+              <TableHead className="print:hidden">Alokasi Vendor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {totals.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-[#1A1A1A]/40">Belum ada material yang terkumpul pada sesi ini.</td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
+              </TableRow>
             ) : (
               totals.map(item => (
-                <tr key={item.categoryId} className="group hover:bg-[#1A1A1A]/[0.02] transition-colors">
-                  <td className="table-cell font-medium flex items-center gap-3">
-                    <FileText className="w-4 h-4 text-[#1A1A1A]/30" />
+                <TableRow key={item.categoryId}>
+                  <TableCell className="font-medium flex items-center gap-3">
+                    <FileText className="size-4 text-muted-foreground" />
                     {item.name}
-                  </td>
-                  <td className="table-cell text-right tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {item.totalWeight} {item.unit}
-                  </td>
-                  <td className="table-cell text-right tabular-nums font-medium">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
                     {formatCurrency(item.totalPayout)}
-                  </td>
-                  <td className="table-cell pl-8 print:hidden">
+                  </TableCell>
+                  <TableCell className="print:hidden">
                     <select
-                      className="w-full bg-transparent border border-[#1A1A1A]/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1A1A1A] transition-colors appearance-none"
+                      className="w-full bg-background border border-input rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring transition-colors appearance-none"
                       value={vendorMappings[item.categoryId] || ''}
                       onChange={e => handleVendorChange(item.categoryId, e.target.value)}
                     >
@@ -167,26 +168,26 @@ export function VendorReportPage({ eventId }: Props) {
                         <option key={v.id} value={v.id}>{v.name}</option>
                       ))}
                     </select>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
+          </TableBody>
           {totals.length > 0 && (
-            <tfoot className="bg-[#1A1A1A]/5 font-medium border-t border-[#1A1A1A]/10">
-              <tr>
-                <td className="table-cell">Total Keseluruhan</td>
-                <td className="table-cell text-right tabular-nums">
+            <TableFooter>
+              <TableRow>
+                <TableCell>Total Keseluruhan</TableCell>
+                <TableCell className="text-right tabular-nums">
                   {totals.reduce((sum, item) => sum + item.totalWeight, 0).toFixed(2)} KG
-                </td>
-                <td className="table-cell text-right tabular-nums">
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
                   {formatCurrency(totals.reduce((sum, item) => sum + item.totalPayout, 0))}
-                </td>
-                <td className="table-cell print:hidden"></td>
-              </tr>
-            </tfoot>
+                </TableCell>
+                <TableCell className="print:hidden"></TableCell>
+              </TableRow>
+            </TableFooter>
           )}
-        </table>
+        </Table>
       </div>
 
       {!isFullyAssigned && totals.length > 0 && (
