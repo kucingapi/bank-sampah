@@ -1,0 +1,73 @@
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --color-background: #F9F9F8;
+  --color-foreground: #1A1A1A;
+
+  --color-primary: #1A1A1A;
+  --color-primary-foreground: #F9F9F8;
+
+  --color-destructive: var(--color-red-600);
+  --color-destructive-foreground: var(--color-red-50);
+
+  --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --color-border: color-mix(in srgb, var(--color-foreground) 20%, transparent);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Typography Utility Classes */
+@utility page-title {
+  @apply text-4xl md:text-5xl font-medium tracking-tight leading-none;
+}
+
+@utility section-header {
+  @apply text-xl font-medium tracking-tight;
+}
+
+@utility micro-label {
+  @apply text-[10px] uppercase tracking-[0.2em];
+}
+
+/* Button Utilities */
+@utility btn-primary {
+  @apply bg-[#1A1A1A] text-[#F9F9F8] rounded-full px-6 py-3 text-xs uppercase tracking-[0.1em] transition-colors hover:bg-[#1A1A1A]/80;
+}
+
+@utility btn-outline {
+  @apply border border-[#1A1A1A]/20 text-[#1A1A1A] rounded-full px-6 py-3 text-xs uppercase tracking-[0.1em] transition-colors hover:bg-[#1A1A1A]/5;
+}
+
+@utility btn-ghost {
+  @apply text-[10px] uppercase tracking-[0.2em] text-[#1A1A1A]/50 transition-colors hover:text-[#1A1A1A];
+}
+
+/* Input Utilities */
+@utility input-editorial {
+  @apply w-full bg-transparent border-b border-[#1A1A1A]/20 py-2 text-sm font-medium focus:outline-none focus:border-[#1A1A1A] transition-colors;
+}
+
+/* Table Utilities */
+@utility table-header-row {
+  @apply border-b border-[#1A1A1A]/20 micro-label px-6 py-3;
+}
+
+@utility table-cell {
+  @apply px-6 py-3;
+}
+
+@utility table-data-row {
+  @apply border-b border-[#1A1A1A]/5 text-sm font-medium hover:bg-[#1A1A1A]/[0.02] transition-colors;
+}

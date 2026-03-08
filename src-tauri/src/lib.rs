@@ -1,0 +1,93 @@
+use tauri_plugin_sql::{Migration, MigrationKind};
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+  let migrations = vec![
+    Migration {
+      version: 1,
+      description: "create initial tables",
+      sql: "
+        CREATE TABLE IF NOT EXISTS member (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          join_date TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS category (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          unit TEXT NOT NULL,
+          default_rate REAL NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active'
+        );
+
+        CREATE TABLE IF NOT EXISTS vendor (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS event (
+          id TEXT PRIMARY KEY,
+          event_date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active'
+        );
+
+        CREATE TABLE IF NOT EXISTS event_rate (
+          event_id TEXT NOT NULL,
+          category_id TEXT NOT NULL,
+          active_rate REAL NOT NULL,
+          PRIMARY KEY (event_id, category_id),
+          FOREIGN KEY (event_id) REFERENCES event(id),
+          FOREIGN KEY (category_id) REFERENCES category(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS deposit (
+          id TEXT PRIMARY KEY,
+          event_id TEXT NOT NULL,
+          member_id TEXT NOT NULL,
+          time TEXT NOT NULL,
+          total_payout REAL NOT NULL DEFAULT 0,
+          FOREIGN KEY (event_id) REFERENCES event(id),
+          FOREIGN KEY (member_id) REFERENCES member(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS deposit_item (
+          deposit_id TEXT NOT NULL,
+          category_id TEXT NOT NULL,
+          weight REAL NOT NULL,
+          PRIMARY KEY (deposit_id, category_id),
+          FOREIGN KEY (deposit_id) REFERENCES deposit(id),
+          FOREIGN KEY (category_id) REFERENCES category(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS vendor_manifest (
+          id TEXT PRIMARY KEY,
+          event_id TEXT NOT NULL,
+          vendor_id TEXT NOT NULL,
+          FOREIGN KEY (event_id) REFERENCES event(id),
+          FOREIGN KEY (vendor_id) REFERENCES vendor(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS manifest_item (
+          manifest_id TEXT NOT NULL,
+          category_id TEXT NOT NULL,
+          outbound_rate REAL NOT NULL,
+          PRIMARY KEY (manifest_id, category_id),
+          FOREIGN KEY (manifest_id) REFERENCES vendor_manifest(id),
+          FOREIGN KEY (category_id) REFERENCES category(id)
+        );
+      ",
+      kind: MigrationKind::Up,
+    },
+  ];
+
+  tauri::Builder::default()
+    .plugin(tauri_plugin_fs::init())
+    .plugin(
+      tauri_plugin_sql::Builder::default()
+        .add_migrations("sqlite:bank_sampah.db", migrations)
+        .build(),
+    )
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}

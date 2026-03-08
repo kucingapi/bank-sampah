@@ -1,0 +1,18 @@
+{
+  "identifier": "fs-access",
+  "description": "allow fs access",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "fs:default",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "**" }
+      ]
+    }
+  ]
+}
