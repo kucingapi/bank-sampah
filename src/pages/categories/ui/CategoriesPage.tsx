@@ -168,7 +168,7 @@ export function CategoriesPage() {
             <span className="text-sm font-medium text-[#1A1A1A]/50">{categories.length} entri</span>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border border-input rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>

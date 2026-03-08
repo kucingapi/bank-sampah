@@ -129,7 +129,7 @@ export function VendorReportPage({ eventId }: Props) {
          </div>
       </header>
 
-      <div className="border rounded-lg overflow-hidden print:border-none">
+      <div className="border border-input rounded-lg overflow-hidden print:border-none">
         <Table>
           <TableHeader>
             <TableRow>
