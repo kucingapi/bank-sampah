@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2 } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { getEvent, updateEventStatus, syncEventRates } from '@/entities/event/api/queries';
 import { listDeposits } from '@/entities/deposit/api/queries';
 import type { Event } from '@/entities/event/model/types';
 import type { Deposit } from '@/entities/deposit/model/types';
 import { formatCurrency } from '@/shared/lib/format';
+import { DataTable } from '@/shared/ui/DataTable';
+import { Button } from '@/shared/ui/ui/button';
 
 interface Props {
   eventId: string;
@@ -75,6 +78,34 @@ export function EventDetailsPage({ eventId }: Props) {
 
   const totalPayout = deposits.reduce((sum, d) => sum + d.total_payout, 0);
 
+  type DepositWithName = Deposit & { memberName: string };
+
+  const columns: ColumnDef<DepositWithName>[] = [
+    {
+      accessorKey: 'time',
+      header: 'Waktu',
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {new Date(row.original.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'memberName',
+      header: 'Anggota',
+      cell: ({ row }) => <span className="font-medium">{row.original.memberName}</span>,
+    },
+    {
+      accessorKey: 'total_payout',
+      header: 'Total Pembayaran',
+      cell: ({ row }) => (
+        <span className="text-right tabular-nums font-medium block">
+          {formatCurrency(row.original.total_payout)}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="p-12 max-w-6xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
@@ -110,18 +141,19 @@ export function EventDetailsPage({ eventId }: Props) {
         <div className="flex items-center gap-4">
           {event.status === 'active' ? (
             <>
-              <button 
+              <Button 
                 onClick={handleSyncRates}
                 disabled={syncing}
-                className="btn-outline flex items-center gap-2"
+                variant="outline"
+                data-icon="inline-start"
               >
-                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={syncing ? 'animate-spin' : ''} />
                 {syncing ? 'Sinkronisasi...' : 'Sinkronisasi Harga Dasar'}
-              </button>
-              <button onClick={handleAddDeposit} className="btn-primary flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+              </Button>
+              <Button onClick={handleAddDeposit} data-icon="inline-start">
+                <Plus />
                 Tambah Setoran
-              </button>
+              </Button>
             </>
           ) : (
             <button onClick={handleGenerateReport} className="btn-primary flex items-center gap-2">
@@ -139,36 +171,7 @@ export function EventDetailsPage({ eventId }: Props) {
             <span className="text-sm font-medium text-[#1A1A1A]/50">{deposits.length} transaksi</span>
           </div>
           
-          <div className="border border-[#1A1A1A]/10 rounded-lg overflow-hidden bg-[#F9F9F8]">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[#1A1A1A]/10">
-                  <th className="table-header">Waktu</th>
-                  <th className="table-header">Anggota</th>
-                  <th className="table-header text-right">Total Pembayaran</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1A1A1A]/5">
-                {deposits.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center text-[#1A1A1A]/40">Belum ada transaksi di sesi ini.</td>
-                  </tr>
-                ) : (
-                  deposits.map(deposit => (
-                    <tr key={deposit.id} className="group hover:bg-[#1A1A1A]/[0.02] transition-colors">
-                      <td className="table-cell w-32 tabular-nums">
-                        {new Date(deposit.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="table-cell font-medium">{deposit.memberName}</td>
-                      <td className="table-cell text-right tabular-nums font-medium">
-                        {formatCurrency(deposit.total_payout)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable columns={columns} data={deposits} />
         </div>
 
         <div className="space-y-6">

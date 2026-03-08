@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Calendar as CalendarIcon, Filter, TrendingUp } from 'lucide-react';
+import { Search, Plus, Filter, TrendingUp, Calendar as CalendarIcon, ArrowUpDown } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { listMembers } from '@/entities/member/api/queries';
 import type { Member } from '@/entities/member/model/types';
 import { formatCurrency } from '@/shared/lib/format';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/shared/ui/ui/table';
+import { DataTable } from '@/shared/ui/DataTable';
 import { Button } from '@/shared/ui/ui/button';
 
+type MemberWithEarnings = Member & { totalEarnings: number };
+
 export function MembersPage() {
-  const [members, setMembers] = useState<(Member & { totalEarnings: number })[]>([]);
+  const [members, setMembers] = useState<MemberWithEarnings[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -40,6 +43,46 @@ export function MembersPage() {
       totalEarnings: members.reduce((sum, m) => sum + (m.totalEarnings || 0), 0)
     };
   }, [members]);
+
+  const columns: ColumnDef<MemberWithEarnings>[] = [
+    {
+      accessorKey: 'id',
+      header: 'ID Nasabah',
+      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.id}</span>,
+    },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting()}
+          className="flex items-center gap-2 hover:text-foreground"
+        >
+          Nama Lengkap
+          <ArrowUpDown className="size-3" />
+        </button>
+      ),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: 'join_date',
+      header: 'Tanggal Bergabung',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <CalendarIcon className="size-3" />
+          {new Date(row.original.join_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'totalEarnings',
+      header: 'Total Pendapatan (Rp)',
+      cell: ({ row }) => (
+        <span className="text-right tabular-nums font-medium block">
+          {formatCurrency(row.original.totalEarnings || 0)}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="p-12 max-w-6xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
@@ -94,49 +137,13 @@ export function MembersPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-6">
-        <div className="col-span-3">
-          <div className="bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded-lg overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[#1A1A1A]/10">
-                  <th className="table-header">ID Nasabah</th>
-                  <th className="table-header">Nama Lengkap</th>
-                  <th className="table-header">Tanggal Bergabung</th>
-                  <th className="table-header text-right">Total Pendapatan (Rp)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1A1A1A]/5">
-                {loading && members.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-[#1A1A1A]/40">Memuat data anggota...</td>
-                  </tr>
-                ) : members.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-[#1A1A1A]/40">Tidak ada anggota yang ditemukan.</td>
-                  </tr>
-                ) : (
-                  members.map(member => (
-                    <tr key={member.id} className="group hover:bg-[#1A1A1A]/[0.02] transition-colors cursor-pointer">
-                      <td className="table-cell font-mono text-xs text-[#1A1A1A]/60">
-                        {member.id}
-                      </td>
-                      <td className="table-cell font-medium">
-                        {member.name}
-                      </td>
-                      <td className="table-cell flex items-center gap-2 text-[#1A1A1A]/70">
-                        <CalendarIcon className="w-3 h-3 text-[#1A1A1A]/30" />
-                        {new Date(member.join_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </td>
-                      <td className="table-cell text-right tabular-nums font-medium">
-                        {formatCurrency(member.totalEarnings || 0)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+         <div className="col-span-3">
+           {loading && members.length === 0 ? (
+             <div className="text-center py-12 text-muted-foreground">Memuat data anggota...</div>
+           ) : (
+             <DataTable columns={columns} data={members} searchKey="name" searchValue={searchQuery} />
+           )}
+         </div>
 
         <div className="space-y-6">
           <div className="p-6 border border-[#1A1A1A]/10 rounded-lg bg-[#1A1A1A] text-[#F9F9F8]">

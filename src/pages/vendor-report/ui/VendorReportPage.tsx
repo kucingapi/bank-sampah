@@ -6,6 +6,7 @@ import type { EventCategoryTotal } from '@/entities/event/model/types';
 import type { Event } from '@/entities/event/model/types';
 import { formatCurrency } from '@/shared/lib/format';
 import { getDb } from '@/shared/api';
+import { Button } from '@/shared/ui/ui/button';
 
 interface Props {
   eventId: string;
@@ -113,18 +114,18 @@ export function VendorReportPage({ eventId }: Props) {
         </div>
         
         <div className="flex items-center gap-4 print:hidden">
-          <button onClick={() => window.print()} className="btn-outline flex items-center gap-2">
-            <Printer className="w-4 h-4" /> Cetak PDF
-          </button>
-          <button 
-            onClick={handleSubmit} 
-            disabled={!isFullyAssigned || saving || totals.length === 0}
-            className="btn-primary flex items-center gap-2"
-          >
-            {saving ? <Truck className="w-4 h-4 animate-bounce" /> : <CheckCircle className="w-4 h-4" />}
-            {saving ? 'Memproses...' : 'Proses Manifest'}
-          </button>
-        </div>
+           <Button onClick={() => window.print()} variant="outline" data-icon="inline-start">
+             <Printer /> Cetak PDF
+           </Button>
+           <Button 
+             onClick={handleSubmit} 
+             disabled={!isFullyAssigned || saving || totals.length === 0}
+             data-icon="inline-start"
+           >
+             {saving ? <Truck className="animate-bounce" /> : <CheckCircle />}
+             {saving ? 'Memproses...' : 'Proses Manifest'}
+           </Button>
+         </div>
       </header>
 
       <div className="bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded-lg overflow-hidden print:border-none print:bg-transparent">
