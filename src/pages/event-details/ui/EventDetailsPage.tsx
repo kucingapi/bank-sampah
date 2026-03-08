@@ -93,16 +93,12 @@ export function EventDetailsPage({ eventId }: Props) {
     {
       accessorKey: 'memberName',
       header: 'Anggota',
-      cell: ({ row }) => <span className="font-medium">{row.original.memberName}</span>,
+      cell: ({ row }) => {row.original.memberName},
     },
     {
       accessorKey: 'total_payout',
       header: 'Total Pembayaran',
-      cell: ({ row }) => (
-        <span className="text-right tabular-nums font-medium block">
-          {formatCurrency(row.original.total_payout)}
-        </span>
-      ),
+      cell: ({ row }) => formatCurrency(row.original.total_payout),
     },
   ];
 

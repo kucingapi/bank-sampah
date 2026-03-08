@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Filter, TrendingUp, Calendar as CalendarIcon, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Filter, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { listMembers } from '@/entities/member/api/queries';
 import type { Member } from '@/entities/member/model/types';
@@ -52,15 +52,7 @@ export function MembersPage() {
     },
     {
       accessorKey: 'name',
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting()}
-          className="flex items-center gap-2 hover:text-foreground"
-        >
-          Nama Lengkap
-          <ArrowUpDown className="size-3" />
-        </button>
-      ),
+      header: 'Nama Lengkap',
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
