@@ -19,12 +19,24 @@
   --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
 
   --color-border: color-mix(in srgb, var(--color-foreground) 20%, transparent);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-primary);
+  --color-muted: color-mix(in srgb, var(--color-foreground) 5%, transparent);
+  --color-muted-foreground: color-mix(in srgb, var(--color-foreground) 40%, transparent);
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-variant-numeric: tabular-nums;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
   }
 }
 

@@ -1,14 +1,23 @@
-import { Modal } from '../Modal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/ui/alert-dialog"
 
 interface ConfirmDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  variant?: 'danger' | 'primary';
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  title: string
+  message: string
+  confirmLabel?: string
+  cancelLabel?: string
+  variant?: "danger" | "primary"
 }
 
 export function ConfirmDialog({
@@ -17,32 +26,32 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
-  variant = 'primary'
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  variant = "primary",
 }: ConfirmDialogProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <div className="space-y-8">
-        <p className="text-[#1A1A1A]/60 leading-relaxed text-sm">{message}</p>
-        <div className="flex justify-end gap-3 pointer-events-auto">
-          <button
-            onClick={onClose}
-            className="btn-outline"
-          >
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{message}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onClose}>
             {cancelLabel}
-          </button>
-          <button
+          </AlertDialogCancel>
+          <AlertDialogAction
             onClick={() => {
-              onConfirm();
-              onClose();
+              onConfirm()
+              onClose()
             }}
-            className={variant === 'danger' ? 'btn-primary bg-red-600 text-red-50 hover:bg-red-700' : 'btn-primary'}
+            className={variant === "danger" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
           >
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
 }

@@ -8,7 +8,7 @@ import { VendorReportPage } from '@/pages/vendor-report';
 import { MembersPage } from '@/pages/members';
 import { CategoriesPage } from '@/pages/categories';
 
-const SettingsPage = () => <div className="p-12"><h2 className="section-header">Settings</h2></div>;
+
 
 export function App() {
   const [activeView, setActiveView] = useState('overview');
@@ -32,7 +32,7 @@ export function App() {
       case 'members': return <MembersPage />;
       case 'categories': return <CategoriesPage />;
       case 'vendor-report': return activeEventId ? <VendorReportPage eventId={activeEventId} /> : <div className="p-12">Invalid Session</div>;
-      case 'settings': return <SettingsPage />;
+
       default: return <OverviewPage />;
     }
   };
