@@ -1,63 +1,100 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ArrowLeft, Printer, Truck, FileText, CheckCircle } from 'lucide-react';
-import { getEventCategoryTotals, createManifest } from '@/entities/event/api/queries';
-import { getEvent } from '@/entities/event/api/queries';
+import { useEvent, useEventCategoryTotals } from '@/entities/event/api/hooks';
+import { useCreateManifest } from '@/entities/manifest/api/hooks';
 import type { EventCategoryTotal } from '@/entities/event/model/types';
-import type { Event } from '@/entities/event/model/types';
 import { formatCurrency } from '@/shared/lib/format';
 import { getDb } from '@/shared/api';
 import { Button } from '@/shared/ui/ui/button';
+import { Skeleton } from '@/shared/ui/ui/skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableFooter } from '@/shared/ui/ui/table';
 
 interface Props {
   eventId: string;
 }
 
+function VendorReportPageSkeleton() {
+  return (
+    <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
+      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+        <div className="flex items-center gap-6">
+          <Skeleton className="size-10 rounded-full" />
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-40" />
+        </div>
+      </header>
+
+      <div className="border border-input rounded-lg overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+              <TableHead className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableHead>
+              <TableHead className="text-right"><Skeleton className="h-4 w-28 ml-auto" /></TableHead>
+              <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-4" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </TableCell>
+                <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 export function VendorReportPage({ eventId }: Props) {
-  const [event, setEvent] = useState<Event | null>(null);
   const [totals, setTotals] = useState<(EventCategoryTotal & { name: string, unit: string })[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [vendorMappings, setVendorMappings] = useState<Record<string, string>>({});
 
-  // Hardcoded for now. In a real app, this would be fetched from a 'vendors' table.
+  const { data: event, isLoading: eventLoading } = useEvent(eventId);
+  const { data: categoryTotals, isLoading: totalsLoading } = useEventCategoryTotals(eventId);
+  const createManifest = useCreateManifest();
+
   const AVAILABLE_VENDORS = [
     { id: 'v-pabrik-kertas', name: 'Pabrik Kertas Nusantara' },
     { id: 'v-pabrik-plastik', name: 'Plastik Daur Ulang Mandiri' },
     { id: 'v-lainnya', name: 'Lainnya (Pengepul Lokal)' },
   ];
 
-  useEffect(() => {
-    async function init() {
-      try {
-        const [e, categoryTotals] = await Promise.all([
-          getEvent(eventId),
-          getEventCategoryTotals(eventId)
-        ]);
-        
-        const db = await getDb();
-        const cats = await db.select<{id: string, name: string, unit: string}[]>('SELECT id, name, unit FROM category');
-        
-        const totalsWithNames = categoryTotals.map(ct => {
-          const cat = cats.find(c => c.id === ct.categoryId);
-          return { ...ct, name: cat?.name || 'Unknown', unit: cat?.unit || 'kg' };
-        });
+  useMemo(() => {
+    async function loadTotals() {
+      if (!categoryTotals) return;
+      
+      const db = await getDb();
+      const cats = await db.select<{id: string, name: string, unit: string}[]>('SELECT id, name, unit FROM category');
+      
+      const totalsWithNames = categoryTotals.map(ct => {
+        const cat = cats.find(c => c.id === ct.categoryId);
+        return { ...ct, name: cat?.name || 'Unknown', unit: cat?.unit || 'kg' };
+      });
 
-        // Initialize default mapping: empty means unassigned
-        const initialMapping: Record<string, string> = {};
-        totalsWithNames.forEach(t => { initialMapping[t.categoryId] = ''; });
+      const initialMapping: Record<string, string> = {};
+      totalsWithNames.forEach(t => { initialMapping[t.categoryId] = ''; });
 
-        setEvent(e);
-        setTotals(totalsWithNames);
-        setVendorMappings(initialMapping);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+      setTotals(totalsWithNames);
+      setVendorMappings(initialMapping);
     }
-    init();
-  }, [eventId]);
+    loadTotals()
+  }, [categoryTotals])
 
   const handleVendorChange = (categoryId: string, vendorId: string) => {
     setVendorMappings(prev => ({
@@ -73,23 +110,21 @@ export function VendorReportPage({ eventId }: Props) {
   const handleSubmit = async () => {
     if (!isFullyAssigned || totals.length === 0) return;
     
-    // In a real implementation this would generate a PDF or lock the event further.
-    // For this demonstration, we simulate saving the mapping.
     try {
-      setSaving(true);
-      // Fallback: any unassigned goes to "Lainnya" internally if they forced it, but UI prevents it
       const assignments = totals.map(t => ({
         categoryId: t.categoryId,
         vendorId: vendorMappings[t.categoryId] || 'v-lainnya'
       }));
       
-      await createManifest(eventId, assignments);
+      await createManifest.mutateAsync({
+        eventId,
+        vendorId: assignments[0]?.vendorId || 'v-lainnya',
+        items: assignments.map(a => ({ category_id: a.categoryId, outbound_rate: 0 }))
+      });
       alert('Manifest Laporan Vendor berhasil dibuat!');
     } catch (err) {
       console.error(err);
       alert('Gagal membuat manifest.');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -97,7 +132,9 @@ export function VendorReportPage({ eventId }: Props) {
     window.dispatchEvent(new CustomEvent('navigate', { detail: { view: 'event-details', eventId } }));
   };
 
-  if (loading || !event) return <div className="p-12 animate-pulse">Memuat laporan...</div>;
+  if (eventLoading || totalsLoading || !event) {
+    return <VendorReportPageSkeleton />;
+  }
 
   return (
     <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
@@ -120,11 +157,11 @@ export function VendorReportPage({ eventId }: Props) {
            </Button>
            <Button 
              onClick={handleSubmit} 
-             disabled={!isFullyAssigned || saving || totals.length === 0}
+             disabled={!isFullyAssigned || createManifest.isPending || totals.length === 0}
              data-icon="inline-start"
            >
-             {saving ? <Truck className="animate-bounce" /> : <CheckCircle />}
-             {saving ? 'Memproses...' : 'Proses Manifest'}
+             {createManifest.isPending ? <Truck className="animate-bounce" /> : <CheckCircle />}
+             {createManifest.isPending ? 'Memproses...' : 'Proses Manifest'}
            </Button>
          </div>
       </header>

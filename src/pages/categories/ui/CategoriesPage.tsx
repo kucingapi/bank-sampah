@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Plus, X } from "lucide-react"
 import {
-  listCategories,
-  updateCategory,
-  createCategory,
-  deleteCategory,
-} from "@/entities/category/api/queries"
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+} from "@/entities/category/api/hooks"
 import type { Category } from "@/entities/category/model/types"
 import {
   Table,
@@ -18,7 +18,8 @@ import {
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
-import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/ui/toggle-group"
+import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs"
+import { Skeleton } from "@/shared/ui/ui/skeleton"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,10 +31,73 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/ui/alert-dialog"
 
-export function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+function CategoriesPageSkeleton() {
+  return (
+    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+      <header className="border-b border-[#1A1A1A]/10 pb-8 pt-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-64 mt-4" />
+      </header>
 
+      <div className="grid grid-cols-3 gap-12">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>
+              <Skeleton className="h-5 w-40" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+
+        <div className="col-span-2 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+
+          <div className="border border-input rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+                  <TableHead><Skeleton className="h-4 w-12" /></TableHead>
+                  <TableHead><Skeleton className="h-4 w-28" /></TableHead>
+                  <TableHead className="w-12"><Skeleton className="h-4 w-4" /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function CategoriesPage() {
   const [newName, setNewName] = useState("")
   const [newUnit, setNewUnit] = useState<"kg" | "pc">("kg")
   const [newRate, setNewRate] = useState("")
@@ -41,21 +105,10 @@ export function CategoriesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true)
-      const data = await listCategories()
-      setCategories(data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchCategories()
-  }, [])
+  const { data: categories = [], isLoading } = useCategories()
+  const createCategory = useCreateCategory()
+  const updateCategory = useUpdateCategory()
+  const deleteCategory = useDeleteCategory()
 
   const generateSafeId = (name: string) => {
     return name
@@ -78,11 +131,15 @@ export function CategoriesPage() {
         return
       }
 
-      await createCategory(safeIdPreview, newName.trim(), newUnit, parseFloat(newRate))
+      await createCategory.mutateAsync({
+        id: safeIdPreview,
+        name: newName.trim(),
+        unit: newUnit,
+        defaultRate: parseFloat(newRate)
+      })
       setNewName("")
       setNewRate("")
       setNewUnit("kg")
-      await fetchCategories()
     } catch (err) {
       console.error("Failed to create", err)
       const isDuplicateId = categories.some((c) => c.id === safeIdPreview)
@@ -98,13 +155,9 @@ export function CategoriesPage() {
 
   const handleUpdate = async (id: string, field: keyof Category, value: any) => {
     try {
-      setCategories((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
-      )
-      await updateCategory(id, { [field]: value })
+      await updateCategory.mutateAsync({ id, updates: { [field]: value } })
     } catch (err) {
       console.error("Update failed", err)
-      await fetchCategories()
     }
   }
 
@@ -116,13 +169,16 @@ export function CategoriesPage() {
   const confirmDelete = async () => {
     if (!categoryToDelete) return
     try {
-      await deleteCategory(categoryToDelete)
-      await fetchCategories()
+      await deleteCategory.mutateAsync(categoryToDelete)
     } catch (err) {
       console.error("Failed to delete", err)
     } finally {
       setCategoryToDelete(null)
     }
+  }
+
+  if (isLoading && categories.length === 0) {
+    return <CategoriesPageSkeleton />
   }
 
   return (
@@ -160,25 +216,16 @@ export function CategoriesPage() {
               <label className="micro-label text-[#1A1A1A]/50 mb-2 block">
                 Satuan (Unit)
               </label>
-              <ToggleGroup
-                type="single"
-                value={newUnit}
-                onValueChange={(value) => value && setNewUnit(value as "kg" | "pc")}
-                className="bg-[#1A1A1A]/5 p-1 rounded-full w-full"
-              >
-                <ToggleGroupItem
-                  value="kg"
-                  className="flex-1 rounded-full text-xs font-medium data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                >
-                  Kilogram (KG)
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="pc"
-                  className="flex-1 rounded-full text-xs font-medium data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                >
-                  Pieces (PC)
-                </ToggleGroupItem>
-              </ToggleGroup>
+              <Tabs value={newUnit} onValueChange={(value: string) => setNewUnit(value as "kg" | "pc")}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="kg" className="flex-1">
+                    Kilogram (KG)
+                  </TabsTrigger>
+                  <TabsTrigger value="pc" className="flex-1">
+                    Pieces (PC)
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div>
@@ -197,7 +244,7 @@ export function CategoriesPage() {
 
             <Button
               onClick={handleCreate}
-              disabled={!isFormValid}
+              disabled={!isFormValid || createCategory.isPending}
               className="w-full"
             >
               <Plus /> Tambahkan
@@ -224,13 +271,7 @@ export function CategoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && categories.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
-                      Memuat ledger...
-                    </TableCell>
-                  </TableRow>
-                ) : categories.length === 0 ? (
+                {categories.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
                       Belum ada kategori terdaftar.
@@ -244,13 +285,7 @@ export function CategoriesPage() {
                           className="font-medium"
                           value={cat.name}
                           onChange={(e) =>
-                            setCategories((prev) =>
-                              prev.map((c) =>
-                                c.id === cat.id
-                                  ? { ...c, name: e.target.value }
-                                  : c
-                              )
-                            )
+                            handleUpdate(cat.id, "name", e.target.value)
                           }
                           onBlur={(e) => {
                             if (e.target.value.trim() !== "") {
@@ -260,27 +295,16 @@ export function CategoriesPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <ToggleGroup
-                          type="single"
-                          value={cat.unit}
-                          onValueChange={(value) =>
-                            value && handleUpdate(cat.id, "unit", value)
-                          }
-                          className="bg-muted p-0.5 rounded-full w-fit"
-                        >
-                          <ToggleGroupItem
-                            value="kg"
-                            className="px-3 py-1 rounded-full text-xs font-medium"
-                          >
-                            KG
-                          </ToggleGroupItem>
-                          <ToggleGroupItem
-                            value="pc"
-                            className="px-3 py-1 rounded-full text-xs font-medium"
-                          >
-                            PC
-                          </ToggleGroupItem>
-                        </ToggleGroup>
+                        <Tabs value={cat.unit} onValueChange={(value: string) => value && handleUpdate(cat.id, "unit", value)}>
+                          <TabsList className="w-fit">
+                            <TabsTrigger value="kg" className="px-3 py-1 text-xs font-medium">
+                              KG
+                            </TabsTrigger>
+                            <TabsTrigger value="pc" className="px-3 py-1 text-xs font-medium">
+                              PC
+                            </TabsTrigger>
+                          </TabsList>
+                        </Tabs>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -288,16 +312,7 @@ export function CategoriesPage() {
                           className="tabular-nums"
                           value={cat.default_rate}
                           onChange={(e) =>
-                            setCategories((prev) =>
-                              prev.map((c) =>
-                                c.id === cat.id
-                                  ? {
-                                      ...c,
-                                      default_rate: parseFloat(e.target.value) || 0,
-                                    }
-                                  : c
-                              )
-                            )
+                            handleUpdate(cat.id, "default_rate", parseFloat(e.target.value) || 0)
                           }
                           onBlur={(e) =>
                             handleUpdate(

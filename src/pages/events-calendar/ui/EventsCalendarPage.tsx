@@ -1,27 +1,52 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { listEvents, createEvent } from "@/entities/event/api/queries"
+import { useEvents, useCreateEvent } from "@/entities/event/api/hooks"
 import type { Event } from "@/entities/event/model/types"
 import { Button } from "@/shared/ui/ui/button"
 import { Badge } from "@/shared/ui/ui/badge"
+import { Skeleton } from "@/shared/ui/ui/skeleton"
 import { cn } from "@/shared/lib/utils"
+
+function EventsCalendarPageSkeleton() {
+  return (
+    <div className="p-12 max-w-5xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+
+        <div className="flex items-center gap-2 px-4 py-2 border border-[#1A1A1A]/20 rounded-full">
+          <Skeleton className="size-6" />
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="size-6" />
+        </div>
+      </header>
+
+      <div className="grid grid-cols-7 gap-px bg-[#1A1A1A]/10 border border-[#1A1A1A]/10 rounded-lg overflow-hidden">
+        {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day) => (
+          <div
+            key={day}
+            className="bg-[#F9F9F8] p-4 text-center"
+          >
+            <Skeleton className="h-4 w-6 mx-auto" />
+          </div>
+        ))}
+        {Array.from({ length: 35 }).map((_, i) => (
+          <div key={i} className="bg-[#F9F9F8] p-4 min-h-[120px] flex flex-col items-start justify-between">
+            <Skeleton className="size-6 rounded-full" />
+            <Skeleton className="h-5 w-16 mt-4" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function EventsCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
-  const [events, setEvents] = useState<Event[]>([])
-
-  const fetchEvents = async () => {
-    try {
-      const data = await listEvents()
-      setEvents(data)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  useEffect(() => {
-    fetchEvents()
-  }, [currentDate])
+  const { data: events = [], isLoading } = useEvents()
+  const createEvent = useCreateEvent()
 
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -65,8 +90,7 @@ export function EventsCalendarPage() {
       window.dispatchEvent(navEvent)
     } else {
       try {
-        const newEvent = await createEvent(dateStr)
-        setEvents([...events, newEvent])
+        const newEvent = await createEvent.mutateAsync(dateStr)
         const navEvent = new CustomEvent("navigate", {
           detail: { view: "event-details", eventId: newEvent.id },
         })
@@ -75,6 +99,10 @@ export function EventsCalendarPage() {
         console.error("Failed to create session", err)
       }
     }
+  }
+
+  if (isLoading) {
+    return <EventsCalendarPageSkeleton />
   }
 
   return (

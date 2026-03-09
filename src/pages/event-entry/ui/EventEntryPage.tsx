@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react"
 import { ArrowLeft, Search, Check, Calculator } from "lucide-react"
-import { getEventRates } from "@/entities/event/api/queries"
-import { listMembers } from "@/entities/member/api/queries"
-import { createDeposit } from "@/entities/deposit/api/queries"
+import { useEventRates } from "@/entities/event/api/hooks"
+import { useMembers } from "@/entities/member/api/hooks"
+import { useDeposit, useCreateDeposit, useUpdateDeposit } from "@/entities/deposit/api/hooks"
 import type { EventRate } from "@/entities/event/model/types"
 import type { Member } from "@/entities/member/model/types"
 import { formatCurrency } from "@/shared/lib/format"
@@ -11,6 +11,7 @@ import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
 import { Separator } from "@/shared/ui/ui/separator"
+import { Skeleton } from "@/shared/ui/ui/skeleton"
 import {
   Command,
   CommandEmpty,
@@ -24,63 +25,146 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui/ui/popover"
-import { cn } from "@/shared/lib/utils"
 
 interface Props {
   eventId: string
+  depositId?: string | null
 }
 
-export function EventEntryPage({ eventId }: Props) {
-  const [rates, setRates] = useState<
-    (EventRate & { name: string; unit: string })[]
-  >([])
-  const [members, setMembers] = useState<Member[]>([])
+interface RateWithDetails extends EventRate {
+  name: string
+  unit: string
+  is_active: number
+}
+
+function EventEntryPageSkeleton() {
+  return (
+    <div className="p-12 max-w-4xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+      <header className="flex items-center gap-6 border-b border-[#1A1A1A]/10 pb-6">
+        <Skeleton className="size-10 rounded-md" />
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </header>
+
+      <div className="grid grid-cols-5 gap-12">
+        <div className="col-span-3 flex flex-col gap-12">
+          <section className="flex flex-col gap-6">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-10 w-full" />
+          </section>
+
+          <section className="flex flex-col gap-6">
+            <Skeleton className="h-5 w-32" />
+            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="col-span-2">
+          <Card className="sticky top-12 h-[400px] flex flex-col">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-5" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <Skeleton className="h-4 w-20" />
+                  <div className="flex gap-4">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+            <div className="p-6 pt-0 mt-auto">
+              <Separator className="mb-6" />
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-8 w-32 mt-2" />
+              <Skeleton className="h-10 w-full mt-8" />
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function EventEntryPage({ eventId, depositId }: Props) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [weights, setWeights] = useState<Record<string, number>>({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [rates, setRates] = useState<RateWithDetails[]>([])
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const isEditMode = !!depositId
+
+  const { data: membersData = [] } = useMembers()
+  const { data: ratesData = [], isLoading: ratesLoading } = useEventRates(eventId)
+  const { data: existingDeposit } = useDeposit(depositId || "")
+  const createDeposit = useCreateDeposit()
+  const updateDeposit = useUpdateDeposit()
 
   useEffect(() => {
-    async function init() {
-      try {
-        const [m, baseRates] = await Promise.all([
-          listMembers(),
-          getEventRates(eventId),
-        ])
+    async function loadRates() {
+      if (!ratesData.length) return
+      const db = await getDb()
+      const cats = await db.select<{ id: string; name: string; unit: string }[]>(
+        "SELECT id, name, unit FROM category"
+      )
 
-        const db = await getDb()
-        const cats = await db.select<{ id: string; name: string; unit: string }[]>(
-          "SELECT id, name, unit FROM category"
-        )
+      const ratesWithNames: RateWithDetails[] = ratesData.map((r) => {
+        const cat = cats.find((c) => c.id === r.category_id)
+        return { 
+          ...r, 
+          name: cat?.name || "Unknown", 
+          unit: cat?.unit || "kg",
+          is_active: (r as any).is_active ?? 1
+        }
+      }).filter(r => r.is_active === 1)
 
-        const ratesWithNames = baseRates.map((r) => {
-          const cat = cats.find((c) => c.id === r.category_id)
-          return { ...r, name: cat?.name || "Unknown", unit: cat?.unit || "kg" }
-        })
-
-        setMembers(m)
-        setRates(ratesWithNames)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+      setRates(ratesWithNames)
     }
-    init()
-  }, [eventId])
+    loadRates()
+  }, [ratesData])
+
+  useEffect(() => {
+    if (isEditMode && existingDeposit && membersData.length > 0) {
+      const member = membersData.find(mem => mem.id === existingDeposit.member_id)
+      if (member) {
+        setSelectedMember(member)
+        setSearchQuery(member.name)
+      }
+      const weightMap: Record<string, number> = {}
+      existingDeposit.items.forEach(item => {
+        weightMap[item.category_id] = item.weight
+      })
+      setWeights(weightMap)
+    }
+  }, [isEditMode, existingDeposit, membersData])
 
   const filteredMembers = useMemo(() => {
-    if (!searchQuery) return members.slice(0, 5)
+    if (!searchQuery) return membersData.slice(0, 5)
     const q = searchQuery.toLowerCase()
-    return members
+    return membersData
       .filter(
         (m) =>
           m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)
       )
       .slice(0, 5)
-  }, [members, searchQuery])
+  }, [membersData, searchQuery])
 
   const currentTotal = useMemo(() => {
     let total = 0
@@ -111,8 +195,22 @@ export function EventEntryPage({ eventId }: Props) {
     if (itemsToSave.length === 0) return
 
     try {
-      setSaving(true)
-      await createDeposit(eventId, selectedMember.id, currentTotal, itemsToSave)
+      if (isEditMode && depositId) {
+        await updateDeposit.mutateAsync({
+          depositId,
+          eventId,
+          memberId: selectedMember.id,
+          totalPayout: currentTotal,
+          items: itemsToSave
+        })
+      } else {
+        await createDeposit.mutateAsync({
+          eventId,
+          memberId: selectedMember.id,
+          totalPayout: currentTotal,
+          items: itemsToSave
+        })
+      }
       window.dispatchEvent(
         new CustomEvent("navigate", {
           detail: { view: "event-details", eventId },
@@ -120,7 +218,6 @@ export function EventEntryPage({ eventId }: Props) {
       )
     } catch (err) {
       console.error(err)
-      setSaving(false)
     }
   }
 
@@ -130,8 +227,9 @@ export function EventEntryPage({ eventId }: Props) {
     )
   }
 
-  if (loading)
-    return <div className="p-12 animate-pulse">Memuat terminal...</div>
+  if (ratesLoading) {
+    return <EventEntryPageSkeleton />
+  }
 
   return (
     <div className="p-12 max-w-4xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
@@ -141,10 +239,12 @@ export function EventEntryPage({ eventId }: Props) {
         </Button>
         <div>
           <h1 className="page-title text-[#1A1A1A]">
-            Terminal <span className="text-[#1A1A1A]/40">Setoran</span>
+            {isEditMode ? "Perbarui" : "Terminal"} <span className="text-[#1A1A1A]/40">Setoran</span>
           </h1>
           <p className="mt-2 text-[#1A1A1A]/50 text-sm">
-            Pencatatan data timbangan dan kalkulasi otomatis.
+            {isEditMode 
+              ? "Perbarui data timbangan dan kalkulasi." 
+              : "Pencatatan data timbangan dan kalkulasi otomatis."}
           </p>
         </div>
       </header>
@@ -230,19 +330,19 @@ export function EventEntryPage({ eventId }: Props) {
               ) : (
                 rates.map((rate) => (
                   <div key={rate.category_id} className="relative group">
-                    <label className="micro-label text-[#1A1A1A]/50 mb-1 flex justify-between">
-                      {rate.name}
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        {formatCurrency(rate.active_rate)}/{rate.unit}
+                    <label className="micro-label text-[#1A1A1A]/50 mb-1 flex justify-between items-center">
+                      <span>{rate.name}</span>
+                      <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
+                        @ {formatCurrency(rate.active_rate)}/{rate.unit}
                       </span>
                     </label>
                     <div className="relative">
                       <Input
                         type="number"
                         min="0"
-                        step="0.01"
-                        placeholder="0.0"
-                        className="pr-8 tabular-nums font-medium"
+                        step={rate.unit === "pc" ? "1" : "0.01"}
+                        placeholder={rate.unit === "pc" ? "0" : "0.0"}
+                        className="pr-8 tabular-nums font-medium bg-white"
                         value={weights[rate.category_id] || ""}
                         onChange={(e) =>
                           handleWeightChange(rate.category_id, e.target.value)
@@ -303,15 +403,15 @@ export function EventEntryPage({ eventId }: Props) {
 
               <Button
                 onClick={handleSubmit}
-                disabled={!selectedMember || currentTotal <= 0 || saving}
+                disabled={!selectedMember || currentTotal <= 0 || createDeposit.isPending || updateDeposit.isPending}
                 className="w-full mt-8"
               >
-                {saving ? (
+                {createDeposit.isPending || updateDeposit.isPending ? (
                   "Menyimpan..."
                 ) : (
                   <>
                     <Check className="size-4" />
-                    Catat Setoran
+                    {isEditMode ? "Perbarui Setoran" : "Catat Setoran"}
                   </>
                 )}
               </Button>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '@/shared/ui/Modal';
-import { createMember } from '@/entities/member/api/queries';
+import { useCreateMember } from '@/entities/member/api/hooks';
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -10,24 +10,22 @@ interface AddMemberModalProps {
 
 export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalProps) {
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const createMember = useCreateMember()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     
-    setLoading(true);
     setError('');
     try {
-      await createMember(name.trim());
+      await createMember.mutateAsync(name.trim());
       setName('');
       onSuccess();
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to create member');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -44,7 +42,7 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
             placeholder="Masukkan nama anggota..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            disabled={loading}
+            disabled={createMember.isPending}
             autoFocus
           />
         </div>
@@ -54,16 +52,16 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
             type="button"
             onClick={onClose}
             className="btn-outline"
-            disabled={loading}
+            disabled={createMember.isPending}
           >
             Batal
           </button>
           <button
             type="submit"
             className="btn-primary flex items-center gap-2"
-            disabled={!name.trim() || loading}
+            disabled={!name.trim() || createMember.isPending}
           >
-            {loading ? 'Menyimpan...' : 'Simpan Anggota'}
+            {createMember.isPending ? 'Menyimpan...' : 'Simpan Anggota'}
           </button>
         </div>
       </form>

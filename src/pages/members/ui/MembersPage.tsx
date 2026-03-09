@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react"
-import { Search, Plus, Filter, TrendingUp, Calendar as CalendarIcon } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Search, Plus, TrendingUp, Calendar as CalendarIcon } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { listMembers } from "@/entities/member/api/queries"
+import { useMembers } from "@/entities/member/api/hooks"
 import type { Member } from "@/entities/member/model/types"
 import { formatCurrency } from "@/shared/lib/format"
 import { DataTable } from "@/shared/ui/DataTable"
@@ -9,39 +9,90 @@ import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
 import { Separator } from "@/shared/ui/ui/separator"
+import { DateRangePicker } from "@/shared/ui/ui/date-picker-range"
+import { Skeleton } from "@/shared/ui/ui/skeleton"
 
 type MemberWithEarnings = Member & { totalEarnings: number }
 
+function MembersPageSkeleton() {
+  return (
+    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-10 w-40" />
+      </header>
+
+      <div className="flex items-center gap-6 p-4 bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded-lg">
+        <Skeleton className="h-10 flex-1" />
+        <Separator orientation="vertical" className="h-8" />
+        <Skeleton className="h-10 w-48" />
+      </div>
+
+      <div className="grid grid-cols-4 gap-6">
+        <div className="col-span-3">
+          <div className="border border-input rounded-lg overflow-hidden">
+            <div className="p-4 bg-muted/30 border-b">
+              <div className="grid grid-cols-4 gap-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="p-4 border-b last:border-b-0 grid grid-cols-4 gap-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <Card className="bg-[#1A1A1A]">
+            <CardHeader>
+              <div className="flex items-center gap-3 opacity-70">
+                <TrendingUp className="size-4" />
+                <CardTitle className="micro-label font-normal">
+                  Analisis Anggota
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              <div>
+                <Skeleton className="h-3 w-24 bg-white/20" />
+                <Skeleton className="h-8 w-16 mt-2 bg-white/30" />
+              </div>
+              <Separator className="bg-white/10" />
+              <div>
+                <Skeleton className="h-3 w-20 bg-white/20" />
+                <Skeleton className="h-6 w-32 mt-2 bg-white/30" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function MembersPage() {
-  const [members, setMembers] = useState<MemberWithEarnings[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
 
-  const fetchMembers = async () => {
-    try {
-      setLoading(true)
-      const data = await listMembers(
-        searchQuery,
-        startDate || undefined,
-        endDate || undefined
-      )
-      setMembers(data as any)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const dateStart = dateRange.from ? dateRange.from.toISOString().split('T')[0] : undefined
+  const dateEnd = dateRange.to ? dateRange.to.toISOString().split('T')[0] : undefined
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchMembers()
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [searchQuery, startDate, endDate])
+  const { data: members = [], isLoading } = useMembers({
+    search: searchQuery,
+    dateStart,
+    dateEnd
+  })
 
   const stats = useMemo(() => {
     return {
@@ -92,6 +143,10 @@ export function MembersPage() {
     },
   ]
 
+  if (isLoading && members.length === 0) {
+    return <MembersPageSkeleton />
+  }
+
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
@@ -116,7 +171,7 @@ export function MembersPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[#1A1A1A]/40" />
           <Input
             placeholder="Cari berdasarkan ID atau Nama..."
-            className="pl-12 bg-transparent border-none focus-visible:ring-0"
+            className="pl-12 bg-white border-none focus-visible:ring-0"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -124,40 +179,22 @@ export function MembersPage() {
 
         <Separator orientation="vertical" className="h-8" />
 
-        <div className="flex items-center gap-4 px-4 text-sm">
-          <Filter className="size-4 text-[#1A1A1A]/40" />
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              className="bg-transparent border-b border-[#1A1A1A]/20 rounded-none focus-visible:ring-0"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <span className="text-[#1A1A1A]/30">—</span>
-            <Input
-              type="date"
-              className="bg-transparent border-b border-[#1A1A1A]/20 rounded-none focus-visible:ring-0"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-        </div>
+        <DateRangePicker
+          showCompare={false}
+          onUpdate={({ range }) => {
+            setDateRange({ from: range.from, to: range.to })
+          }}
+        />
       </div>
 
       <div className="grid grid-cols-4 gap-6">
         <div className="col-span-3">
-          {loading && members.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              Memuat data anggota...
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={members}
-              searchKey="name"
-              searchValue={searchQuery}
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={members}
+            searchKey="name"
+            searchValue={searchQuery}
+          />
         </div>
 
         <div className="flex flex-col gap-6">
