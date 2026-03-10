@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/api/query-keys';
-import { listVendors, createVendor } from './queries';
+import { listVendors, createVendor, deleteVendor } from './queries';
 
 export function useVendors(search?: string) {
   return useQuery({
@@ -13,6 +13,16 @@ export function useCreateVendor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => createVendor(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all });
+    },
+  });
+}
+
+export function useDeleteVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteVendor(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all });
     },

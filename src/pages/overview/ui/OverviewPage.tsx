@@ -96,11 +96,6 @@ export function OverviewPage() {
               </span>
               <span className="text-[#1A1A1A]/50 font-medium">kg</span>
             </div>
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <TrendingUp className="size-4 text-[#1A1A1A]" />
-              <span className="font-medium">+12.5%</span>
-              <span className="text-[#1A1A1A]/40">vs bulan lalu</span>
-            </div>
           </CardContent>
         </Card>
 
@@ -115,11 +110,6 @@ export function OverviewPage() {
               <span className="text-4xl font-medium tracking-tight">
                 {formatCurrency(safeStats.totalPayout)}
               </span>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <TrendingUp className="size-4 text-[#1A1A1A]" />
-              <span className="font-medium">+8.2%</span>
-              <span className="text-[#1A1A1A]/40">vs bulan lalu</span>
             </div>
           </CardContent>
         </Card>

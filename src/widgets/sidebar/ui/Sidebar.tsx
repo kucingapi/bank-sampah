@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Tags, Calendar, FileText, Circle } from "lucide-react"
+import { LayoutDashboard, Users, Tags, Calendar, FileText, Circle, Truck } from "lucide-react"
 import { APP_NAME } from "@/shared/config"
 import { Button } from "@/shared/ui/ui/button"
 import { cn } from "@/shared/lib/utils"
@@ -14,6 +14,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
     { id: "calendar", icon: Calendar, label: "Sessions & Events" },
     { id: "members", icon: Users, label: "Members Directory" },
     { id: "categories", icon: Tags, label: "Category Schema" },
+    { id: "vendors", icon: Truck, label: "Vendors" },
     { id: "reports", icon: FileText, label: "Vendor Manifests" },
   ]
 

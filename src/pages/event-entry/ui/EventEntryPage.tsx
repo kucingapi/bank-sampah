@@ -358,50 +358,69 @@ export function EventEntryPage({ eventId, depositId }: Props) {
         </div>
 
         <div className="col-span-2">
-          <Card className="sticky top-12 h-[400px] flex flex-col">
+          <Card className="sticky top-12 flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <Calculator className="size-5 text-[#1A1A1A]/40" />
                 <CardTitle className="section-header">Kalkulasi</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto flex flex-col gap-4">
-              {Object.entries(weights).map(([catId, weight]) => {
-                const rate = rates.find((r) => r.category_id === catId)
-                if (!rate || weight <= 0) return null
-                const subtotal = rate.active_rate * weight
+            <CardContent className="flex-1 flex flex-col">
+              {Object.keys(weights).filter(k => weights[k] > 0).length > 0 && (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#1A1A1A]/10">
+                      <th className="text-left py-3 text-xs font-medium text-[#1A1A1A]/40 uppercase tracking-wider">Kategori</th>
+                      <th className="text-right py-3 text-xs font-medium text-[#1A1A1A]/40 uppercase tracking-wider">Berat</th>
+                      <th className="text-right py-3 text-xs font-medium text-[#1A1A1A]/40 uppercase tracking-wider">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(weights).map(([catId, weight]) => {
+                      const rate = rates.find((r) => r.category_id === catId)
+                      if (!rate || weight <= 0) return null
+                      const subtotal = rate.active_rate * weight
 
-                return (
-                  <div
-                    key={catId}
-                    className="flex justify-between items-baseline text-sm animate-in fade-in zoom-in-95"
-                  >
-                    <span className="text-[#1A1A1A]/60">{rate.name}</span>
-                    <div className="flex gap-4">
-                      <span className="tabular-nums text-[#1A1A1A]/40">
-                        {weight} {rate.unit}
-                      </span>
-                      <span className="tabular-nums font-medium w-24 text-right truncate">
-                        {formatCurrency(subtotal)}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
+                      return (
+                        <tr
+                          key={catId}
+                          className="border-b border-[#1A1A1A]/5 animate-in fade-in zoom-in-95"
+                        >
+                          <td className="py-3 text-[#1A1A1A]/80">{rate.name}</td>
+                          <td className="py-3 text-right tabular-nums text-[#1A1A1A]/50 font-mono">
+                            {weight.toLocaleString("id-ID", { minimumFractionDigits: rate.unit === "pc" ? 0 : 2, maximumFractionDigits: rate.unit === "pc" ? 0 : 2 })} <span className="text-[#1A1A1A]/30">{rate.unit}</span>
+                          </td>
+                          <td className="py-3 text-right tabular-nums font-medium text-[#1A1A1A]">
+                            {formatCurrency(subtotal)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {Object.keys(weights).filter(k => weights[k] > 0).length === 0 && (
+                <div className="flex-1 flex items-center justify-center text-[#1A1A1A]/30 text-sm py-12">
+                  Masukkan berat untuk melihat kalkulasi
+                </div>
+              )}
             </CardContent>
-            <div className="p-6 pt-0 mt-auto">
-              <Separator className="mb-6" />
-              <p className="micro-label text-[#1A1A1A]/50 mb-2">
-                Total Pembayaran
-              </p>
-              <p className="text-3xl font-medium tracking-tight tabular-nums transition-all">
-                {formatCurrency(currentTotal)}
-              </p>
+            <div className="p-6 pt-4 mt-auto border-t border-[#1A1A1A]/10 bg-[#1A1A1A]/2">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="micro-label text-[#1A1A1A]/50 mb-1">
+                    Total Pembayaran
+                  </p>
+                  <p className="text-3xl font-medium tracking-tight tabular-nums transition-all">
+                    {formatCurrency(currentTotal)}
+                  </p>
+                </div>
+              </div>
 
               <Button
                 onClick={handleSubmit}
                 disabled={!selectedMember || currentTotal <= 0 || createDeposit.isPending || updateDeposit.isPending}
-                className="w-full mt-8"
+                className="w-full mt-6"
               >
                 {createDeposit.isPending || updateDeposit.isPending ? (
                   "Menyimpan..."

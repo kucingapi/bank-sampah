@@ -1,8 +1,11 @@
-import { useState, useMemo } from 'react';
-import { ArrowLeft, Printer, Truck, FileText, CheckCircle } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
+import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEvent, useEventCategoryTotals } from '@/entities/event/api/hooks';
-import { useCreateManifest } from '@/entities/manifest/api/hooks';
+import { useVendors, useCreateVendor } from '@/entities/vendor/api/hooks';
+import { useCreateManifestsByAssignments, useManifests } from '@/entities/manifest/api/hooks';
+import { getOrCreateDefaultVendors } from '@/entities/vendor/api/queries';
 import type { EventCategoryTotal } from '@/entities/event/model/types';
+import type { Vendor } from '@/entities/vendor/model/types';
 import { formatCurrency } from '@/shared/lib/format';
 import { getDb } from '@/shared/api';
 import { Button } from '@/shared/ui/ui/button';
@@ -13,6 +16,19 @@ import { exportToCSV } from '@/shared/lib/csv';
 
 interface Props {
   eventId: string;
+}
+
+interface CategoryItem extends EventCategoryTotal {
+  name: string;
+  unit: string;
+}
+
+interface VendorGroup {
+  vendorId: number;
+  vendorName: string;
+  categories: CategoryItem[];
+  totalWeight: number;
+  totalPayout: number;
 }
 
 function VendorReportPageSkeleton() {
@@ -64,64 +80,141 @@ function VendorReportPageSkeleton() {
 }
 
 export function VendorReportPage({ eventId }: Props) {
-  const [totals, setTotals] = useState<(EventCategoryTotal & { name: string, unit: string })[]>([]);
-  const [vendorMappings, setVendorMappings] = useState<Record<string, string>>({});
+  const [categoryItems, setCategoryItems] = useState<CategoryItem[]>([]);
+  const [vendorMappings, setVendorMappings] = useState<Record<string, number>>({});
+  const [availableVendors, setAvailableVendors] = useState<Vendor[]>([]);
+  const [expandedVendors, setExpandedVendors] = useState<Set<number>>(new Set());
+  const [defaultVendorIds, setDefaultVendorIds] = useState<{ bsm: number; lainnya: number } | null>(null);
+  const [newVendorName, setNewVendorName] = useState('');
+  const [isAddingVendor, setIsAddingVendor] = useState(false);
 
   const { data: event, isLoading: eventLoading } = useEvent(eventId);
   const { data: categoryTotals, isLoading: totalsLoading } = useEventCategoryTotals(eventId);
-  const createManifest = useCreateManifest();
+  const { data: existingManifests } = useManifests(eventId);
+  const { data: vendorsData = [] } = useVendors();
+  
+  const createVendor = useCreateVendor();
+  const createManifests = useCreateManifestsByAssignments();
 
-  const AVAILABLE_VENDORS = [
-    { id: 'v-pabrik-kertas', name: 'Pabrik Kertas Nusantara' },
-    { id: 'v-pabrik-plastik', name: 'Plastik Daur Ulang Mandiri' },
-    { id: 'v-lainnya', name: 'Lainnya (Pengepul Lokal)' },
-  ];
+  // 1. Initialize Default Vendors and Available Vendors
+  useEffect(() => {
+    async function loadDefaults() {
+      const defaults = await getOrCreateDefaultVendors();
+      setDefaultVendorIds({ bsm: defaults.bsm.id, lainnya: defaults.lainnya.id });
+    }
+    loadDefaults();
+  }, []);
 
-  useMemo(() => {
-    async function loadTotals() {
-      if (!categoryTotals) return;
-      
+  useEffect(() => {
+    if (defaultVendorIds) {
+      setAvailableVendors([...vendorsData]);
+    }
+  }, [vendorsData, defaultVendorIds]);
+
+  // 2. Initialize Category Items and Mappings
+  useEffect(() => {
+    async function initializeMappings() {
+      if (!categoryTotals || !defaultVendorIds) return;
+
       const db = await getDb();
-      const cats = await db.select<{id: string, name: string, unit: string}[]>('SELECT id, name, unit FROM category');
+      const cats = await db.select<{ id: string, name: string, unit: string }[]>('SELECT id, name, unit FROM category');
       
-      const totalsWithNames = categoryTotals.map(ct => {
+      const items: CategoryItem[] = categoryTotals.map(ct => {
         const cat = cats.find(c => c.id === ct.categoryId);
         return { ...ct, name: cat?.name || 'Unknown', unit: cat?.unit || 'kg' };
       });
+      setCategoryItems(items);
 
-      const initialMapping: Record<string, string> = {};
-      totalsWithNames.forEach(t => { initialMapping[t.categoryId] = ''; });
-
-      setTotals(totalsWithNames);
-      setVendorMappings(initialMapping);
+      const mapping: Record<string, number> = {};
+      
+      if (existingManifests && existingManifests.length > 0) {
+        existingManifests.forEach(m => {
+          m.items.forEach(item => {
+            mapping[item.category_id] = m.vendor_id;
+          });
+        });
+      } else {
+        items.forEach(item => {
+          if (item.name.toLowerCase().includes('c4') || item.name.toLowerCase().includes('karton') || item.name.toLowerCase().includes('kertas')) {
+            mapping[item.categoryId] = defaultVendorIds.bsm;
+          } else {
+            mapping[item.categoryId] = defaultVendorIds.lainnya;
+          }
+        });
+      }
+      
+      setVendorMappings(mapping);
     }
-    loadTotals()
-  }, [categoryTotals])
+    initializeMappings();
+  }, [categoryTotals, existingManifests, defaultVendorIds]);
 
-  const handleVendorChange = (categoryId: string, vendorId: string) => {
+  const handleVendorChange = (categoryId: string, vendorId: number) => {
     setVendorMappings(prev => ({
       ...prev,
       [categoryId]: vendorId
     }));
   };
 
+  const handleQuickAddVendor = async () => {
+    if (!newVendorName.trim()) return;
+    setIsAddingVendor(true);
+    try {
+      const vendor = await createVendor.mutateAsync(newVendorName.trim());
+      setNewVendorName('');
+      // Optionally auto-assign selected categories to new vendor here if needed
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menambah vendor.');
+    } finally {
+      setIsAddingVendor(false);
+    }
+  };
+
+  const vendorGroups = useMemo((): VendorGroup[] => {
+    const groups: Record<number, VendorGroup> = {};
+    
+    categoryItems.forEach(item => {
+      const vendorId = vendorMappings[item.categoryId] || defaultVendorIds?.lainnya || 0;
+      const vendor = availableVendors.find(v => v.id === vendorId) || 
+                     (vendorId === defaultVendorIds?.bsm ? { id: vendorId, name: 'BSM' } : 
+                      vendorId === defaultVendorIds?.lainnya ? { id: vendorId, name: 'Lainnya' } : null);
+      
+      const vendorName = vendor?.name || 'Unknown Vendor';
+      
+      if (!groups[vendorId]) {
+        groups[vendorId] = {
+          vendorId,
+          vendorName,
+          categories: [],
+          totalWeight: 0,
+          totalPayout: 0
+        };
+      }
+      
+      groups[vendorId].categories.push(item);
+      groups[vendorId].totalWeight += item.totalWeight;
+      groups[vendorId].totalPayout += item.totalPayout;
+    });
+    
+    return Object.values(groups).sort((a, b) => b.totalWeight - a.totalWeight);
+  }, [categoryItems, vendorMappings, availableVendors, defaultVendorIds]);
+
   const isFullyAssigned = useMemo(() => {
-    return totals.every(t => vendorMappings[t.categoryId] !== '');
-  }, [totals, vendorMappings]);
+    return categoryItems.length > 0 && categoryItems.every(item => vendorMappings[item.categoryId] !== undefined);
+  }, [categoryItems, vendorMappings]);
 
   const handleSubmit = async () => {
-    if (!isFullyAssigned || totals.length === 0) return;
+    if (!isFullyAssigned || categoryItems.length === 0 || !defaultVendorIds) return;
     
     try {
-      const assignments = totals.map(t => ({
-        categoryId: t.categoryId,
-        vendorId: vendorMappings[t.categoryId] || 'v-lainnya'
+      const assignments = vendorGroups.map(group => ({
+        vendorId: group.vendorId,
+        items: group.categories.map(c => ({ category_id: c.categoryId, outbound_rate: 0 }))
       }));
       
-      await createManifest.mutateAsync({
+      await createManifests.mutateAsync({
         eventId,
-        vendorId: assignments[0]?.vendorId || 'v-lainnya',
-        items: assignments.map(a => ({ category_id: a.categoryId, outbound_rate: 0 }))
+        assignments
       });
       alert('Manifest Laporan Vendor berhasil dibuat!');
     } catch (err) {
@@ -135,18 +228,48 @@ export function VendorReportPage({ eventId }: Props) {
   };
 
   const handleExport = () => {
-    const exportData = totals.map(t => ({
+    const exportData = categoryItems.map(t => ({
       category: t.name,
       total_weight: t.totalWeight,
       unit: t.unit,
-      total_payout: t.totalPayout
+      total_payout: t.totalPayout,
+      vendor: availableVendors.find(v => v.id === vendorMappings[t.categoryId])?.name || 'Unknown'
     }));
     exportToCSV(exportData, 'manifest-report');
   };
 
-  if (eventLoading || totalsLoading || !event) {
+  const toggleVendorExpand = (vendorId: number) => {
+    setExpandedVendors(prev => {
+      const next = new Set(prev);
+      if (next.has(vendorId)) {
+        next.delete(vendorId);
+      } else {
+        next.add(vendorId);
+      }
+      return next;
+    });
+  };
+
+  if (eventLoading || totalsLoading || !event || !defaultVendorIds) {
     return <VendorReportPageSkeleton />;
   }
+
+  const grandTotalPayout = categoryItems.reduce((sum, item) => sum + item.totalPayout, 0);
+  
+  const summaryText = useMemo(() => {
+    const kgTotal = categoryItems.filter(i => i.unit === 'kg').reduce((sum, i) => sum + i.totalWeight, 0);
+    const pcItems = categoryItems.filter(i => i.unit === 'pc');
+    
+    const parts: string[] = [];
+    if (kgTotal > 0 || pcItems.length === 0) {
+      parts.push(`${kgTotal.toFixed(2)} KG`);
+    }
+    pcItems.forEach(i => {
+      parts.push(`${i.totalWeight} PC ${i.name}`);
+    });
+    
+    return parts.join(', ');
+  }, [categoryItems]);
 
   return (
     <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
@@ -170,68 +293,128 @@ export function VendorReportPage({ eventId }: Props) {
            </Button>
            <Button 
              onClick={handleSubmit} 
-             disabled={!isFullyAssigned || createManifest.isPending || totals.length === 0}
+             disabled={!isFullyAssigned || createManifests.isPending || categoryItems.length === 0}
              data-icon="inline-start"
            >
-             {createManifest.isPending ? <Truck className="animate-bounce" /> : <CheckCircle />}
-             {createManifest.isPending ? 'Memproses...' : 'Proses Manifest'}
+             {createManifests.isPending ? <Truck className="animate-bounce" /> : <CheckCircle />}
+             {createManifests.isPending ? 'Memproses...' : 'Proses Manifest'}
            </Button>
          </div>
       </header>
+
+      {existingManifests && existingManifests.length > 0 && (
+        <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm flex gap-3 print:hidden">
+          <CheckCircle className="w-5 h-5 flex-shrink-0" />
+          <p>Manifest sudah dibuat untuk sesi ini. Anda dapat mengubah alokasi vendor dan memproses ulang jika diperlukan.</p>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 print:hidden">
+        <div className="flex-1 flex items-center gap-2 max-w-sm">
+          <Truck className="size-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Tambah vendor baru cepat..."
+            className="flex-1 bg-transparent border-b border-[#1A1A1A]/10 pb-1 text-sm focus:outline-none focus:border-primary transition-colors"
+            value={newVendorName}
+            onChange={e => setNewVendorName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleQuickAddVendor()}
+          />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleQuickAddVendor}
+            disabled={!newVendorName.trim() || isAddingVendor}
+          >
+            Tambah
+          </Button>
+        </div>
+      </div>
 
       <div className="border border-input rounded-lg overflow-hidden print:border-none">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Kategori Material</TableHead>
+              <TableHead>Vendor</TableHead>
               <TableHead className="text-right">Total Berat</TableHead>
               <TableHead className="text-right">Total Biaya (Nasabah)</TableHead>
-              <TableHead className="print:hidden">Alokasi Vendor</TableHead>
+              <TableHead className="print:hidden">Alokasi Kategori</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {totals.length === 0 ? (
+            {vendorGroups.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
               </TableRow>
             ) : (
-              totals.map(item => (
-                <TableRow key={item.categoryId}>
-                  <TableCell className="font-medium flex items-center gap-3">
-                    <FileText className="size-4 text-muted-foreground" />
-                    {item.name}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {item.totalWeight} {item.unit}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {formatCurrency(item.totalPayout)}
-                  </TableCell>
-                  <TableCell className="print:hidden">
-                    <select
-                      className="w-full bg-background border border-input rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring transition-colors appearance-none"
-                      value={vendorMappings[item.categoryId] || ''}
-                      onChange={e => handleVendorChange(item.categoryId, e.target.value)}
-                    >
-                      <option value="" disabled>Pilih Vendor...</option>
-                      {AVAILABLE_VENDORS.map(v => (
-                        <option key={v.id} value={v.id}>{v.name}</option>
-                      ))}
-                    </select>
-                  </TableCell>
-                </TableRow>
+              vendorGroups.map(group => (
+                <Fragment key={group.vendorId}>
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-medium">
+                      <button 
+                        onClick={() => toggleVendorExpand(group.vendorId)}
+                        className="flex items-center gap-2 hover:text-primary transition-colors"
+                      >
+                        {expandedVendors.has(group.vendorId) ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                        <Truck className="w-4 h-4 text-muted-foreground" />
+                        {group.vendorName}
+                        <span className="text-muted-foreground text-xs ml-2">({group.categories.length} kategori)</span>
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {group.totalWeight.toFixed(2)} KG
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(group.totalPayout)}
+                    </TableCell>
+                    <TableCell className="print:hidden"></TableCell>
+                  </TableRow>
+                  
+                  {expandedVendors.has(group.vendorId) && group.categories.map(item => (
+                    <TableRow key={item.categoryId} className="bg-background border-l-2 border-primary/20">
+                      <TableCell className="pl-12 text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          <FileText className="size-4" />
+                          {item.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {item.totalWeight} {item.unit}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatCurrency(item.totalPayout)}
+                      </TableCell>
+                      <TableCell className="print:hidden">
+                        <select
+                          className="w-full bg-background border border-input rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring transition-colors appearance-none"
+                          value={vendorMappings[item.categoryId] ?? ''}
+                          onChange={e => handleVendorChange(item.categoryId, Number(e.target.value))}
+                        >
+                          <option value="" disabled>Pilih Vendor...</option>
+                          {availableVendors.map(v => (
+                            <option key={v.id} value={v.id}>{v.name}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </Fragment>
               ))
             )}
           </TableBody>
-          {totals.length > 0 && (
+          {categoryItems.length > 0 && (
             <TableFooter>
               <TableRow>
                 <TableCell>Total Keseluruhan</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {totals.reduce((sum, item) => sum + item.totalWeight, 0).toFixed(2)} KG
+                <TableCell className="text-right tabular-nums font-medium">
+                  {summaryText}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatCurrency(totals.reduce((sum, item) => sum + item.totalPayout, 0))}
+                <TableCell className="text-right tabular-nums font-bold">
+                  {formatCurrency(grandTotalPayout)}
                 </TableCell>
                 <TableCell className="print:hidden"></TableCell>
               </TableRow>
@@ -240,7 +423,7 @@ export function VendorReportPage({ eventId }: Props) {
         </Table>
       </div>
 
-      {!isFullyAssigned && totals.length > 0 && (
+      {!isFullyAssigned && categoryItems.length > 0 && (
         <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-xl text-sm flex gap-3 print:hidden">
           <Truck className="w-5 h-5 flex-shrink-0" />
           <p>Beberapa material belum teralokasi ke vendor. Mohon lengkapi alokasi vendor untuk dapat memproses manifest ini.</p>

@@ -1,7 +1,7 @@
 export interface VendorManifest {
   id: string;
   event_id: string;
-  vendor_id: string;
+  vendor_id: number;
 }
 
 export interface ManifestItem {

@@ -35,7 +35,7 @@ export async function listManifests(eventId: string): Promise<ManifestWithDetail
 
 export async function createManifest(
   eventId: string, 
-  vendorId: string, 
+  vendorId: number, 
   items: { category_id: string, outbound_rate: number }[]
 ): Promise<string> {
   const db = await getDb();
@@ -56,8 +56,43 @@ export async function createManifest(
   return id;
 }
 
+export async function createManifestsByAssignments(
+  eventId: string,
+  assignments: { vendorId: number; items: { category_id: string; outbound_rate: number }[] }[]
+): Promise<void> {
+  const db = await getDb();
+  
+  for (const assignment of assignments) {
+    const id = generateId();
+    await db.execute(
+      'INSERT INTO vendor_manifest (id, event_id, vendor_id) VALUES (?, ?, ?)',
+      [id, eventId, assignment.vendorId]
+    );
+    
+    for (const item of assignment.items) {
+      await db.execute(
+        'INSERT INTO manifest_item (manifest_id, category_id, outbound_rate) VALUES (?, ?, ?)',
+        [id, item.category_id, item.outbound_rate]
+      );
+    }
+  }
+}
+
 export async function deleteManifestsByEvent(eventId: string): Promise<void> {
   const db = await getDb();
   await db.execute('DELETE FROM manifest_item WHERE manifest_id IN (SELECT id FROM vendor_manifest WHERE event_id = ?)', [eventId]);
   await db.execute('DELETE FROM vendor_manifest WHERE event_id = ?', [eventId]);
+}
+
+export async function getEventManifests(eventId: string): Promise<ManifestWithDetails[]> {
+  return listManifests(eventId);
+}
+
+export async function hasManifest(eventId: string): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.select<{ count: number }[]>(
+    'SELECT COUNT(*) as count FROM vendor_manifest WHERE event_id = ?',
+    [eventId]
+  );
+  return result[0]?.count > 0;
 }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save } from "lucide-react"
+import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   useEvent,
@@ -9,6 +9,7 @@ import {
   useUpdateEventRate,
 } from "@/entities/event/api/hooks"
 import { useDeposits } from "@/entities/deposit/api/hooks"
+import { useHasManifest, useDeleteManifestsByEvent } from "@/entities/manifest/api/hooks"
 import type { Deposit } from "@/entities/deposit/model/types"
 import { formatCurrency } from "@/shared/lib/format"
 import { getDb } from "@/shared/api"
@@ -112,9 +113,11 @@ export function EventDetailsPage({ eventId }: Props) {
   const { data: event, isLoading: eventLoading } = useEvent(eventId)
   const { data: deposits = [] } = useDeposits(eventId)
   const { data: ratesData } = useEventRates(eventId)
+  const { data: hasManifest } = useHasManifest(eventId)
   const updateStatus = useUpdateEventStatus()
   const syncRates = useSyncEventRates()
   const updateRate = useUpdateEventRate()
+  const deleteManifests = useDeleteManifestsByEvent()
 
   const handleSyncRates = async () => {
     try {
@@ -138,6 +141,9 @@ export function EventDetailsPage({ eventId }: Props) {
   }
 
   const handleReactivationConfirm = async () => {
+    if (hasManifest) {
+      await deleteManifests.mutateAsync(eventId)
+    }
     await updateStatus.mutateAsync({ id: eventId, status: "active" })
     setShowReactivationWarning(false)
   }
@@ -315,8 +321,7 @@ export function EventDetailsPage({ eventId }: Props) {
               <span className="text-[#1A1A1A]/20">|</span>
               <Badge
                 variant={event.status === "active" ? "default" : "secondary"}
-                className="cursor-pointer uppercase tracking-wider"
-                onClick={handleToggleStatus}
+                className="uppercase tracking-wider"
               >
                 {event.status === "active" ? (
                   <>
@@ -328,7 +333,7 @@ export function EventDetailsPage({ eventId }: Props) {
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="size-3" /> SELESAI
+                    <CheckCircle2 className="size-3 mr-1" /> SELESAI
                   </>
                 )}
               </Badge>
@@ -343,9 +348,11 @@ export function EventDetailsPage({ eventId }: Props) {
               Tambah Setoran
             </Button>
           ) : (
-            <Button onClick={handleGenerateReport}>
+            <Button onClick={handleGenerateReport} variant={hasManifest === false ? "outline" : "default"} className={hasManifest === false ? "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100" : ""}>
+              {hasManifest === false && <AlertCircle className="size-4 mr-2" />}
               <FileText className="size-4" />
               Laporan Vendor
+              {hasManifest === false && <span className="ml-2 text-xs">(Belum Ada)</span>}
             </Button>
           )}
         </div>
@@ -482,6 +489,26 @@ export function EventDetailsPage({ eventId }: Props) {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-4 border-t border-[#1A1A1A]/10 pt-6">
+        {event.status === "active" ? (
+          <Button
+            onClick={() => updateStatus.mutate({ id: eventId, status: "finished" })}
+            variant="outline"
+            className="border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100"
+          >
+            <CheckCircle2 className="size-4 mr-2" />
+            Selesai
+          </Button>
+        ) : (
+          <Button
+            onClick={handleToggleStatus}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Aktifkan
+          </Button>
+        )}
       </div>
 
       <ConfirmDialog

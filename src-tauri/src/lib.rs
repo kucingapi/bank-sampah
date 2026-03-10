@@ -2,11 +2,10 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = vec![
-        Migration {
-            version: 1,
-            description: "create initial tables",
-            sql: "
+    let migrations = vec![Migration {
+        version: 1,
+        description: "create initial tables",
+        sql: "
         CREATE TABLE IF NOT EXISTS member (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
@@ -22,8 +21,8 @@ pub fn run() {
         );
 
         CREATE TABLE IF NOT EXISTS vendor (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE
         );
 
         CREATE TABLE IF NOT EXISTS event (
@@ -36,6 +35,7 @@ pub fn run() {
           event_id TEXT NOT NULL,
           category_id TEXT NOT NULL,
           active_rate REAL NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY (event_id, category_id),
           FOREIGN KEY (event_id) REFERENCES event(id),
           FOREIGN KEY (category_id) REFERENCES category(id)
@@ -63,7 +63,7 @@ pub fn run() {
         CREATE TABLE IF NOT EXISTS vendor_manifest (
           id TEXT PRIMARY KEY,
           event_id TEXT NOT NULL,
-          vendor_id TEXT NOT NULL,
+          vendor_id INTEGER NOT NULL,
           FOREIGN KEY (event_id) REFERENCES event(id),
           FOREIGN KEY (vendor_id) REFERENCES vendor(id)
         );
@@ -76,16 +76,14 @@ pub fn run() {
           FOREIGN KEY (manifest_id) REFERENCES vendor_manifest(id),
           FOREIGN KEY (category_id) REFERENCES category(id)
         );
+
+        INSERT OR IGNORE INTO vendor (name) VALUES ('BSM');
+        INSERT OR IGNORE INTO vendor (name) VALUES ('Lainnya');
+
+        INSERT OR IGNORE INTO category (id, name, unit, default_rate, status) VALUES ('c4', 'C4', 'kg', 0, 'active');
       ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 2,
-            description: "add is_active column to event_rate",
-            sql: "ALTER TABLE event_rate ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-            kind: MigrationKind::Up,
-        },
-    ];
+        kind: MigrationKind::Up,
+    }];
 
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())

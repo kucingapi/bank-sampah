@@ -9,6 +9,7 @@ import { EventEntryPage } from '@/pages/event-entry';
 import { VendorReportPage } from '@/pages/vendor-report';
 import { MembersPage } from '@/pages/members';
 import { CategoriesPage } from '@/pages/categories';
+import { VendorsPage } from '@/pages/vendors';
 
 
 
@@ -35,6 +36,7 @@ export function App() {
       case 'event-entry': return activeEventId ? <EventEntryPage eventId={activeEventId} depositId={activeDepositId} /> : <div className="p-12">Invalid Session</div>;
       case 'members': return <MembersPage />;
       case 'categories': return <CategoriesPage />;
+      case 'vendors': return <VendorsPage />;
       case 'vendor-report': return activeEventId ? <VendorReportPage eventId={activeEventId} /> : <div className="p-12">Invalid Session</div>;
 
       default: return <OverviewPage />;
