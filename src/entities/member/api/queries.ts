@@ -1,5 +1,4 @@
 import { getDb } from '@/shared/api';
-import { generateId } from '@/shared/lib/id';
 import type { Member } from '../model/types';
 
 export async function listMembers(search?: string, dateStart?: string, dateEnd?: string): Promise<(Member & { totalEarnings: number })[]> {
@@ -36,15 +35,19 @@ export async function listMembers(search?: string, dateStart?: string, dateEnd?:
 
 export async function createMember(name: string): Promise<Member> {
   const db = await getDb();
-  const id = generateId();
   const joinDate = new Date().toISOString();
   
-  await db.execute('INSERT INTO member (id, name, join_date) VALUES (?, ?, ?)', [id, name, joinDate]);
+  const result = await db.execute('INSERT INTO member (name, join_date) VALUES (?, ?)', [name, joinDate]);
   
-  return { id, name, join_date: joinDate };
+  const lastId = result.lastInsertId;
+  if (lastId === undefined) {
+    throw new Error('Failed to create member');
+  }
+  
+  return { id: lastId, name, join_date: joinDate };
 }
 
-export async function getMemberEarnings(memberId: string): Promise<number> {
+export async function getMemberEarnings(memberId: number): Promise<number> {
   const db = await getDb();
   const result = await db.select<{ total: number }[]>('SELECT SUM(total_payout) as total FROM deposit WHERE member_id = ?', [memberId]);
   return result[0]?.total || 0;

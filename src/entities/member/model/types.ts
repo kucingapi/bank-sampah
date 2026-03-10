@@ -1,6 +1,6 @@
 export interface Member {
-  id: string;
+  id: number;
   name: string;
   join_date: string;
-  totalEarnings?: number; // Computed field
+  totalEarnings?: number;
 }

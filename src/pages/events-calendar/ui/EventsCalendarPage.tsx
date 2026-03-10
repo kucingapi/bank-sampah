@@ -45,8 +45,11 @@ function EventsCalendarPageSkeleton() {
 
 export function EventsCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
+  const [loadingDay, setLoadingDay] = useState<string | null>(null)
   const { data: events = [], isLoading } = useEvents()
   const createEvent = useCreateEvent()
+
+  const todayStr = new Date().toLocaleDateString("en-CA")
 
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -89,6 +92,7 @@ export function EventsCalendarPage() {
       })
       window.dispatchEvent(navEvent)
     } else {
+      setLoadingDay(dateStr)
       try {
         const newEvent = await createEvent.mutateAsync(dateStr)
         const navEvent = new CustomEvent("navigate", {
@@ -97,6 +101,8 @@ export function EventsCalendarPage() {
         window.dispatchEvent(navEvent)
       } catch (err) {
         console.error("Failed to create session", err)
+      } finally {
+        setLoadingDay(null)
       }
     }
   }
@@ -169,13 +175,18 @@ export function EventsCalendarPage() {
           const dayEvent = events.find((e: Event) =>
             e.event_date.startsWith(dateStr)
           )
-          const isToday = day === 14
+          const isToday = dateStr === todayStr
+          const isLoading = loadingDay === dateStr
 
           return (
             <button
               key={day}
               onClick={() => handleDateClick(day)}
-              className="group bg-[#F9F9F8] p-4 min-h-[120px] flex flex-col items-start justify-between hover:bg-[#1A1A1A]/[0.02] transition-colors text-left relative"
+              disabled={isLoading}
+              className={cn(
+                "group bg-[#F9F9F8] p-4 min-h-[120px] flex flex-col items-start justify-between hover:bg-[#1A1A1A]/[0.02] transition-colors text-left relative",
+                isLoading && "cursor-wait"
+              )}
             >
               <span
                 className={cn(
@@ -188,7 +199,11 @@ export function EventsCalendarPage() {
                 {day}
               </span>
 
-              {dayEvent ? (
+              {isLoading ? (
+                <div className="w-full mt-4">
+                  <Skeleton className="h-4 w-20 animate-pulse" />
+                </div>
+              ) : dayEvent ? (
                 <div className="w-full flex items-center justify-between mt-4">
                   <div className="flex items-center gap-2">
                     {dayEvent.status === "active" ? (

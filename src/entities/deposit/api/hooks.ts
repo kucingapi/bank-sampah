@@ -32,7 +32,7 @@ export function useCreateDeposit() {
       items,
     }: {
       eventId: string;
-      memberId: string;
+      memberId: number;
       totalPayout: number;
       items: { categoryId: string; weight: number }[];
     }) => createDeposit(eventId, memberId, totalPayout, items),
@@ -56,7 +56,7 @@ export function useUpdateDeposit() {
     }: {
       depositId: string;
       eventId: string;
-      memberId: string;
+      memberId: number;
       totalPayout: number;
       items: { categoryId: string; weight: number }[];
     }) => updateDeposit(depositId, memberId, totalPayout, items),

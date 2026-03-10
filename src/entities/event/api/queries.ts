@@ -51,7 +51,7 @@ export async function syncEventRates(eventId: string): Promise<void> {
   await db.execute('DELETE FROM event_rate WHERE event_id = $1', [eventId]);
   
   const categories = await db.select<{id: string, default_rate: number}[]>(
-    "SELECT id, default_rate FROM category WHERE status = 'active'"
+    "SELECT id, default_rate FROM category"
   );
   
   for (const cat of categories) {

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Plus, X } from "lucide-react"
 import {
   useCategories,
@@ -7,6 +7,8 @@ import {
   useDeleteCategory,
 } from "@/entities/category/api/hooks"
 import type { Category } from "@/entities/category/model/types"
+import { ExportCSVButton } from "@/shared/ui/ExportCSVButton"
+import { exportToCSV } from "@/shared/lib/csv"
 import {
   Table,
   TableHeader,
@@ -115,6 +117,19 @@ export function CategoriesPage() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "")
+  }
+
+  const categoriesForExport = useMemo(() => {
+    return categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      unit: cat.unit,
+      default_rate: cat.default_rate
+    }))
+  }, [categories])
+
+  const handleExport = () => {
+    exportToCSV(categoriesForExport, "material-categories")
   }
 
   const safeIdPreview = generateSafeId(newName)
@@ -254,7 +269,10 @@ export function CategoriesPage() {
 
         <div className="col-span-2 flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h2 className="section-header">Daftar Material</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="section-header">Daftar Material</h2>
+              <ExportCSVButton onExport={handleExport} filename="categories" />
+            </div>
             <span className="text-sm font-medium text-[#1A1A1A]/50">
               {categories.length} entri
             </span>

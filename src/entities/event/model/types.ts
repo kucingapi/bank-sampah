@@ -8,6 +8,7 @@ export interface EventRate {
   event_id: string;
   category_id: string;
   active_rate: number;
+  is_active: number;
 }
 
 export interface EventCategoryTotal {

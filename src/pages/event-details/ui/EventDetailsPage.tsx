@@ -1,22 +1,26 @@
-import { useState } from "react"
-import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign } from "lucide-react"
+import { useState, useMemo, useCallback, useEffect } from "react"
+import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   useEvent,
   useUpdateEventStatus,
   useSyncEventRates,
+  useEventRates,
+  useUpdateEventRate,
 } from "@/entities/event/api/hooks"
 import { useDeposits } from "@/entities/deposit/api/hooks"
 import type { Deposit } from "@/entities/deposit/model/types"
 import { formatCurrency } from "@/shared/lib/format"
+import { getDb } from "@/shared/api"
 import { DataTable } from "@/shared/ui/DataTable"
 import { Button } from "@/shared/ui/ui/button"
+import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent } from "@/shared/ui/ui/card"
 import { Separator } from "@/shared/ui/ui/separator"
 import { Badge } from "@/shared/ui/ui/badge"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog"
-import { DailyRatesEditor } from "./DailyRatesEditor"
+import { cn } from "@/shared/lib/utils"
 
 interface Props {
   eventId: string
@@ -101,16 +105,21 @@ function EventDetailsPageSkeleton() {
 
 export function EventDetailsPage({ eventId }: Props) {
   const [showReactivationWarning, setShowReactivationWarning] = useState(false)
-  const [showRatesEditor, setShowRatesEditor] = useState(false)
+  const [localRates, setLocalRates] = useState<Record<string, { rate: number; active: number }>>({})
+  const [ratesLoaded, setRatesLoaded] = useState(false)
+  const [categories, setCategories] = useState<Record<string, { name: string; unit: string }>>({})
 
   const { data: event, isLoading: eventLoading } = useEvent(eventId)
   const { data: deposits = [] } = useDeposits(eventId)
+  const { data: ratesData } = useEventRates(eventId)
   const updateStatus = useUpdateEventStatus()
   const syncRates = useSyncEventRates()
+  const updateRate = useUpdateEventRate()
 
   const handleSyncRates = async () => {
     try {
       await syncRates.mutateAsync(eventId)
+      setRatesLoaded(false)
     } catch (err) {
       console.error(err)
     }
@@ -145,21 +154,11 @@ export function EventDetailsPage({ eventId }: Props) {
     )
   }
 
-  const handleEditDeposit = (depositId: string) => {
+  const handleEditDeposit = useCallback((depositId: string) => {
     window.dispatchEvent(
       new CustomEvent("navigate", { detail: { view: "event-entry", eventId, depositId } })
     )
-  }
-
-  const handleGenerateReport = () => {
-    window.dispatchEvent(
-      new CustomEvent("navigate", { detail: { view: "vendor-report", eventId } })
-    )
-  }
-
-  if (eventLoading || !event) {
-    return <EventDetailsPageSkeleton />
-  }
+  }, [eventId])
 
   const depositsWithDetails = deposits.map(dd => ({
     ...dd,
@@ -168,7 +167,7 @@ export function EventDetailsPage({ eventId }: Props) {
 
   const totalPayout = depositsWithDetails.reduce((sum, d) => sum + d.total_payout, 0)
 
-  const columns: ColumnDef<DepositWithDetails>[] = [
+  const columns = useMemo<ColumnDef<DepositWithDetails>[]>(() => [
     {
       accessorKey: "id",
       header: "ID",
@@ -223,7 +222,75 @@ export function EventDetailsPage({ eventId }: Props) {
         </Button>
       ),
     },
-  ]
+  ], [handleEditDeposit])
+
+  const handleGenerateReport = () => {
+    window.dispatchEvent(
+      new CustomEvent("navigate", { detail: { view: "vendor-report", eventId } })
+    )
+  }
+
+  useEffect(() => {
+    async function loadRates() {
+      if (!ratesData || ratesLoaded) return
+      
+      const db = await getDb()
+      const cats = await db.select<{ id: string; name: string; unit: string }[]>(
+        "SELECT id, name, unit FROM category"
+      )
+      
+      const catsMap: Record<string, { name: string; unit: string }> = {}
+      cats.forEach(c => {
+        catsMap[c.id] = { name: c.name, unit: c.unit }
+      })
+      setCategories(catsMap)
+      
+      const initial: Record<string, { rate: number; active: number }> = {}
+      ratesData.forEach(r => {
+        initial[r.category_id] = { rate: r.active_rate, active: r.is_active }
+      })
+      setLocalRates(initial)
+      setRatesLoaded(true)
+    }
+    loadRates()
+  }, [ratesData, ratesLoaded])
+
+  const handleRateChange = (catId: string, value: string) => {
+    const num = parseFloat(value) || 0
+    setLocalRates(prev => ({
+      ...prev,
+      [catId]: { ...prev[catId], rate: num },
+    }))
+  }
+
+  const handleActiveToggle = (catId: string) => {
+    setLocalRates(prev => ({
+      ...prev,
+      [catId]: { ...prev[catId], active: prev[catId].active === 1 ? 0 : 1 },
+    }))
+  }
+
+  const handleSaveRates = async () => {
+    try {
+      await Promise.all(
+        Object.entries(localRates).map(([catId, data]) =>
+          updateRate.mutateAsync({
+            eventId,
+            categoryId: catId,
+            activeRate: data.rate,
+            isActive: data.active
+          })
+        )
+      )
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  if (eventLoading || !event) {
+    return <EventDetailsPageSkeleton />
+  }
+
 
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
@@ -271,27 +338,10 @@ export function EventDetailsPage({ eventId }: Props) {
 
         <div className="flex items-center gap-4">
           {event.status === "active" ? (
-            <>
-              <Button
-                onClick={() => setShowRatesEditor(true)}
-                variant="outline"
-              >
-                <DollarSign className="size-4" />
-                Nilai Tukar Aktif
-              </Button>
-              <Button
-                onClick={handleSyncRates}
-                disabled={syncRates.isPending}
-                variant="outline"
-              >
-                <RefreshCw className={syncRates.isPending ? "animate-spin" : ""} />
-                {syncRates.isPending ? "Sinkronisasi..." : "Sinkronisasi Harga Dasar"}
-              </Button>
-              <Button onClick={handleAddDeposit}>
-                <Plus />
-                Tambah Setoran
-              </Button>
-            </>
+            <Button onClick={handleAddDeposit}>
+              <Plus />
+              Tambah Setoran
+            </Button>
           ) : (
             <Button onClick={handleGenerateReport}>
               <FileText className="size-4" />
@@ -301,12 +351,79 @@ export function EventDetailsPage({ eventId }: Props) {
         </div>
       </header>
 
-      {showRatesEditor && (
-        <div className="mb-6">
-          <DailyRatesEditor
-            eventId={eventId}
-            onClose={() => setShowRatesEditor(false)}
-          />
+      {event.status === "active" && (
+        <div className="border border-input rounded-lg overflow-hidden">
+          <div className="p-4 bg-muted/30 border-b flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <DollarSign className="size-4" />
+              <span className="font-medium">Kategori Nilai Tukar</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSyncRates}
+                disabled={syncRates.isPending}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw className={syncRates.isPending ? "animate-spin size-3" : "size-3"} />
+                <span className="ml-2">Sinkronisasi Harga Dasar</span>
+              </Button>
+              <Button
+                onClick={handleSaveRates}
+                disabled={updateRate.isPending}
+                size="sm"
+              >
+                <Save className="size-3" />
+                <span className="ml-2">Simpan</span>
+              </Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-4 p-4">
+            {ratesData?.map(rate => {
+              const cat = localRates[rate.category_id]
+              const catInfo = categories[rate.category_id]
+              const isActive = cat?.active !== 0
+              return (
+                <div
+                  key={rate.category_id}
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-lg border transition-opacity",
+                    !isActive ? "opacity-50 bg-muted/30" : "bg-background"
+                  )}
+                >
+                  <div className="flex-1 mr-3">
+                    <p className="font-medium text-sm">{catInfo?.name || rate.category_id}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(rate.active_rate)}/{catInfo?.unit || 'kg'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      className="w-20 h-8 text-sm"
+                      value={localRates[rate.category_id]?.rate || ""}
+                      onChange={e => handleRateChange(rate.category_id, e.target.value)}
+                      disabled={!isActive}
+                      min={0}
+                      step={catInfo?.unit === "pc" ? 1 : 100}
+                    />
+                    <Button
+                      variant={isActive ? "default" : "outline"}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleActiveToggle(rate.category_id)}
+                    >
+                      {isActive ? (
+                        <Archive className="size-3" />
+                      ) : (
+                        <RotateCcw className="size-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -332,7 +449,7 @@ export function EventDetailsPage({ eventId }: Props) {
               </p>
             </div>
           ) : (
-            <DataTable columns={columns} data={depositsWithDetails} />
+            <DataTable columns={columns} data={depositsWithDetails} enableExport exportFilename="event-deposits" />
           )}
         </div>
 

@@ -41,7 +41,7 @@ export async function getDepositWithItems(depositId: string): Promise<Deposit & 
 
 export async function createDeposit(
   eventId: string, 
-  memberId: string, 
+  memberId: number, 
   totalPayout: number,
   items: { categoryId: string, weight: number }[]
 ): Promise<string> {
@@ -67,9 +67,9 @@ export async function createDeposit(
 
 export async function updateDeposit(
   depositId: string,
-  memberId: string, 
+  memberId: number, 
   totalPayout: number,
-  items: { categoryId: string, weight: number }[]
+  items: { categoryId: string; weight: number }[]
 ): Promise<void> {
   const db = await getDb();
   

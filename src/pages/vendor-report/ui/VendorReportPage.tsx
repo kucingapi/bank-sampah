@@ -8,6 +8,8 @@ import { getDb } from '@/shared/api';
 import { Button } from '@/shared/ui/ui/button';
 import { Skeleton } from '@/shared/ui/ui/skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableFooter } from '@/shared/ui/ui/table';
+import { ExportCSVButton } from '@/shared/ui/ExportCSVButton';
+import { exportToCSV } from '@/shared/lib/csv';
 
 interface Props {
   eventId: string;
@@ -132,6 +134,16 @@ export function VendorReportPage({ eventId }: Props) {
     window.dispatchEvent(new CustomEvent('navigate', { detail: { view: 'event-details', eventId } }));
   };
 
+  const handleExport = () => {
+    const exportData = totals.map(t => ({
+      category: t.name,
+      total_weight: t.totalWeight,
+      unit: t.unit,
+      total_payout: t.totalPayout
+    }));
+    exportToCSV(exportData, 'manifest-report');
+  };
+
   if (eventLoading || totalsLoading || !event) {
     return <VendorReportPageSkeleton />;
   }
@@ -152,6 +164,7 @@ export function VendorReportPage({ eventId }: Props) {
         </div>
         
         <div className="flex items-center gap-4 print:hidden">
+           <ExportCSVButton onExport={handleExport} filename="manifest" />
            <Button onClick={() => window.print()} variant="outline" data-icon="inline-start">
              <Printer /> Cetak PDF
            </Button>

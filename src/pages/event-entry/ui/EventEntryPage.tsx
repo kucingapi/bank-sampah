@@ -159,10 +159,7 @@ export function EventEntryPage({ eventId, depositId }: Props) {
     if (!searchQuery) return membersData.slice(0, 5)
     const q = searchQuery.toLowerCase()
     return membersData
-      .filter(
-        (m) =>
-          m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)
-      )
+      .filter((m) => m.name.toLowerCase().includes(q))
       .slice(0, 5)
   }, [membersData, searchQuery])
 

@@ -9,7 +9,7 @@ export function useMembers(filters?: { search?: string; dateStart?: string; date
   });
 }
 
-export function useMemberEarnings(memberId: string) {
+export function useMemberEarnings(memberId: number) {
   return useQuery({
     queryKey: queryKeys.members.earnings(memberId),
     queryFn: () => getMemberEarnings(memberId),

@@ -1,7 +1,7 @@
 export interface Deposit {
   id: string;
   event_id: string;
-  member_id: string;
+  member_id: number;
   time: string;
   total_payout: number;
 }

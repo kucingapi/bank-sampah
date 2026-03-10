@@ -2,12 +2,13 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = vec![Migration {
-        version: 1,
-        description: "create initial tables",
-        sql: "
+    let migrations = vec![
+        Migration {
+            version: 1,
+            description: "create initial tables",
+            sql: "
         CREATE TABLE IF NOT EXISTS member (
-          id TEXT PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           join_date TEXT NOT NULL
         );
@@ -35,7 +36,6 @@ pub fn run() {
           event_id TEXT NOT NULL,
           category_id TEXT NOT NULL,
           active_rate REAL NOT NULL,
-          is_active INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY (event_id, category_id),
           FOREIGN KEY (event_id) REFERENCES event(id),
           FOREIGN KEY (category_id) REFERENCES category(id)
@@ -44,7 +44,7 @@ pub fn run() {
         CREATE TABLE IF NOT EXISTS deposit (
           id TEXT PRIMARY KEY,
           event_id TEXT NOT NULL,
-          member_id TEXT NOT NULL,
+          member_id INTEGER NOT NULL,
           time TEXT NOT NULL,
           total_payout REAL NOT NULL DEFAULT 0,
           FOREIGN KEY (event_id) REFERENCES event(id),
@@ -77,8 +77,15 @@ pub fn run() {
           FOREIGN KEY (category_id) REFERENCES category(id)
         );
       ",
-        kind: MigrationKind::Up,
-    }];
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "add is_active column to event_rate",
+            sql: "ALTER TABLE event_rate ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
+            kind: MigrationKind::Up,
+        },
+    ];
 
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())

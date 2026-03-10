@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Modal } from '@/shared/ui/Modal';
 import { useCreateMember } from '@/entities/member/api/hooks';
+import { Input } from '@/shared/ui/ui/input';
+import { Button } from '@/shared/ui/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -31,14 +34,15 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tambah Anggota">
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {error && <div className="text-red-600 bg-red-50 p-4 rounded-lg text-sm">{error}</div>}
         
         <div className="space-y-2">
-          <label className="micro-label text-[#1A1A1A]/50">Nama Lengkap</label>
-          <input
+          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Nama Lengkap
+          </label>
+          <Input
             type="text"
-            className="input-editorial"
             placeholder="Masukkan nama anggota..."
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -47,22 +51,22 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
           />
         </div>
         
-        <div className="flex justify-end gap-3 pt-6">
-          <button
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
             type="button"
+            variant="outline"
             onClick={onClose}
-            className="btn-outline"
             disabled={createMember.isPending}
           >
             Batal
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="btn-primary flex items-center gap-2"
             disabled={!name.trim() || createMember.isPending}
           >
+            {createMember.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {createMember.isPending ? 'Menyimpan...' : 'Simpan Anggota'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
