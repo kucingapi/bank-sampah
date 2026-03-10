@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle } from "lucide-react"
+import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle, X } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   useEvent,
@@ -35,7 +35,7 @@ interface DepositWithDetails extends Deposit {
 function EventDetailsPageSkeleton() {
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex items-center gap-6">
           <Skeleton className="size-10 rounded-md" />
           <div className="flex flex-col gap-4">
@@ -59,7 +59,7 @@ function EventDetailsPageSkeleton() {
             <Skeleton className="h-5 w-40" />
             <Skeleton className="h-4 w-20" />
           </div>
-          <div className="border border-input rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-hidden">
             <div className="p-4 bg-muted/30 border-b">
               <div className="grid grid-cols-5 gap-4">
                 <Skeleton className="h-4 w-16" />
@@ -107,8 +107,10 @@ function EventDetailsPageSkeleton() {
 export function EventDetailsPage({ eventId }: Props) {
   const [showReactivationWarning, setShowReactivationWarning] = useState(false)
   const [localRates, setLocalRates] = useState<Record<string, { rate: number; active: number }>>({})
+  const [savedRates, setSavedRates] = useState<Record<string, { rate: number; active: number }>>({})
   const [ratesLoaded, setRatesLoaded] = useState(false)
   const [categories, setCategories] = useState<Record<string, { name: string; unit: string }>>({})
+  const [isEditingRates, setIsEditingRates] = useState(false)
 
   const { data: event, isLoading: eventLoading } = useEvent(eventId)
   const { data: deposits = [] } = useDeposits(eventId)
@@ -256,6 +258,7 @@ export function EventDetailsPage({ eventId }: Props) {
         initial[r.category_id] = { rate: r.active_rate, active: r.is_active }
       })
       setLocalRates(initial)
+      setSavedRates(initial)
       setRatesLoaded(true)
     }
     loadRates()
@@ -288,10 +291,27 @@ export function EventDetailsPage({ eventId }: Props) {
           })
         )
       )
+      setSavedRates(localRates)
+      setIsEditingRates(false)
     } catch (err) {
       console.error(err)
     }
   }
+
+  const handleToggleEditRates = () => {
+    if (isEditingRates) {
+      setLocalRates(savedRates)
+      setIsEditingRates(false)
+    } else {
+      setIsEditingRates(true)
+    }
+  }
+
+  const hasUnsavedChanges = Object.keys(localRates).some(
+    catId => 
+      localRates[catId].rate !== savedRates[catId]?.rate ||
+      localRates[catId].active !== savedRates[catId]?.active
+  )
 
   if (eventLoading || !event) {
     return <EventDetailsPageSkeleton />
@@ -300,7 +320,7 @@ export function EventDetailsPage({ eventId }: Props) {
 
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex items-center gap-6">
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="size-5" />
@@ -343,6 +363,23 @@ export function EventDetailsPage({ eventId }: Props) {
 
         <div className="flex items-center gap-4">
           {event.status === "active" ? (
+            <Button
+              onClick={() => updateStatus.mutate({ id: eventId, status: "finished" })}
+              variant="outline"
+              className="border-black text-black hover:bg-black hover:text-white"
+            >
+              <CheckCircle2 className="size-4 mr-2" />
+              Selesai
+            </Button>
+          ) : (
+            <Button
+              onClick={handleToggleStatus}
+              className="bg-black hover:bg-black/80"
+            >
+              Aktifkan
+            </Button>
+          )}
+          {event.status === "active" ? (
             <Button onClick={handleAddDeposit}>
               <Plus />
               Tambah Setoran
@@ -358,33 +395,50 @@ export function EventDetailsPage({ eventId }: Props) {
         </div>
       </header>
 
-      {event.status === "active" && (
-        <div className="border border-input rounded-lg overflow-hidden">
-          <div className="p-4 bg-muted/30 border-b flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <DollarSign className="size-4" />
-              <span className="font-medium">Kategori Nilai Tukar</span>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="border border-border rounded-lg overflow-hidden">
+        <div className="p-4 bg-muted/30 border-b border-b-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <DollarSign className="size-4" />
+            <span className="font-medium">Kategori Nilai Tukar</span>
+            {hasUnsavedChanges && (
+              <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-200">
+                Belum Disimpan
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSyncRates}
+              disabled={syncRates.isPending || !isEditingRates}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={syncRates.isPending ? "animate-spin size-3" : "size-3"} />
+              <span className="ml-2">Sinkronisasi Harga Dasar</span>
+            </Button>
+            {isEditingRates && (
               <Button
-                onClick={handleSyncRates}
-                disabled={syncRates.isPending}
-                variant="outline"
-                size="sm"
-              >
-                <RefreshCw className={syncRates.isPending ? "animate-spin size-3" : "size-3"} />
-                <span className="ml-2">Sinkronisasi Harga Dasar</span>
-              </Button>
-              <Button
-                onClick={handleSaveRates}
+                onClick={handleToggleEditRates}
                 disabled={updateRate.isPending}
                 size="sm"
+                variant="outline"
               >
-                <Save className="size-3" />
-                <span className="ml-2">Simpan</span>
+                <X className="size-3" />
+                <span className="ml-2">Batal</span>
               </Button>
-            </div>
+            )}
+            <Button
+              onClick={isEditingRates ? handleSaveRates : handleToggleEditRates}
+              disabled={updateRate.isPending}
+              size="sm"
+              variant={isEditingRates ? "default" : "outline"}
+              className={isEditingRates ? "bg-black hover:bg-black/80" : ""}
+            >
+              <Save className="size-3" />
+              <span className="ml-2">{isEditingRates ? "Simpan" : "Edit"}</span>
+            </Button>
           </div>
+        </div>
           <div className="grid grid-cols-4 gap-4 p-4">
             {ratesData?.map(rate => {
               const cat = localRates[rate.category_id]
@@ -410,7 +464,7 @@ export function EventDetailsPage({ eventId }: Props) {
                       className="w-20 h-8 text-sm"
                       value={localRates[rate.category_id]?.rate || ""}
                       onChange={e => handleRateChange(rate.category_id, e.target.value)}
-                      disabled={!isActive}
+                      disabled={!isActive || !isEditingRates}
                       min={0}
                       step={catInfo?.unit === "pc" ? 1 : 100}
                     />
@@ -418,6 +472,7 @@ export function EventDetailsPage({ eventId }: Props) {
                       variant={isActive ? "default" : "outline"}
                       size="icon"
                       className="h-8 w-8"
+                      disabled={!isEditingRates}
                       onClick={() => handleActiveToggle(rate.category_id)}
                     >
                       {isActive ? (
@@ -432,7 +487,6 @@ export function EventDetailsPage({ eventId }: Props) {
             })}
           </div>
         </div>
-      )}
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 flex flex-col gap-6">
@@ -489,26 +543,6 @@ export function EventDetailsPage({ eventId }: Props) {
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      <div className="flex items-center justify-end gap-4 border-t border-[#1A1A1A]/10 pt-6">
-        {event.status === "active" ? (
-          <Button
-            onClick={() => updateStatus.mutate({ id: eventId, status: "finished" })}
-            variant="outline"
-            className="border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100"
-          >
-            <CheckCircle2 className="size-4 mr-2" />
-            Selesai
-          </Button>
-        ) : (
-          <Button
-            onClick={handleToggleStatus}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            Aktifkan
-          </Button>
-        )}
       </div>
 
       <ConfirmDialog

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
-import { Search, Plus, TrendingUp, Calendar as CalendarIcon } from "lucide-react"
+import { Search, Plus, TrendingUp, Calendar as CalendarIcon, Download } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { useMembers } from "@/entities/member/api/hooks"
+import { useMembers, useExportDetailedMemberList } from "@/entities/member/api/hooks"
 import type { Member } from "@/entities/member/model/types"
 import { formatCurrency } from "@/shared/lib/format"
 import { DataTable } from "@/shared/ui/DataTable"
@@ -66,17 +66,32 @@ function StatsSkeleton() {
 
 export function MembersPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
+  const [eventDateRange, setEventDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
-  const dateStart = dateRange.from ? dateRange.from.toISOString().split('T')[0] : undefined
-  const dateEnd = dateRange.to ? dateRange.to.toISOString().split('T')[0] : undefined
+  const eventDateStart = eventDateRange.from ? eventDateRange.from.toISOString().split('T')[0] : undefined
+  const eventDateEnd = eventDateRange.to ? eventDateRange.to.toISOString().split('T')[0] : undefined
 
   const { data: members = [], isLoading } = useMembers({
     search: searchQuery,
-    dateStart,
-    dateEnd
+    eventDateStart,
+    eventDateEnd
   })
+
+  const exportMutation = useExportDetailedMemberList()
+
+  const handleExportDetail = async () => {
+    const csv = await exportMutation.mutateAsync({ eventDateStart, eventDateEnd })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `detail-anggota${eventDateStart ? '-range' : ''}-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const stats = useMemo(() => {
     return {
@@ -133,7 +148,7 @@ export function MembersPage() {
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
         <div>
-          <h1 className="page-title text-[#1A1A1A]">
+          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
             Direktori <span className="text-[#1A1A1A]/40">Anggota</span>
           </h1>
           <p className="mt-2 text-[#1A1A1A]/50 text-sm">
@@ -164,9 +179,18 @@ export function MembersPage() {
         <DateRangePicker
           showCompare={false}
           onUpdate={({ range }) => {
-            setDateRange({ from: range.from, to: range.to })
+            setEventDateRange({ from: range.from, to: range.to })
           }}
         />
+
+        <Button
+          variant="outline"
+          onClick={handleExportDetail}
+          disabled={exportMutation.isPending}
+        >
+          <Download className="size-4 mr-2" />
+          Export Detail Sesi
+        </Button>
       </div>
 
       <div className="grid grid-cols-4 gap-6">

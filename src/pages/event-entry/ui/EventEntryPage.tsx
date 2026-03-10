@@ -235,7 +235,7 @@ export function EventEntryPage({ eventId, depositId }: Props) {
           <ArrowLeft className="size-5" />
         </Button>
         <div>
-          <h1 className="page-title text-[#1A1A1A]">
+          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
             {isEditMode ? "Perbarui" : "Terminal"} <span className="text-[#1A1A1A]/40">Setoran</span>
           </h1>
           <p className="mt-2 text-[#1A1A1A]/50 text-sm">

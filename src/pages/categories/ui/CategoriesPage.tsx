@@ -199,7 +199,7 @@ export function CategoriesPage() {
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="border-b border-[#1A1A1A]/10 pb-8 pt-2">
-        <h1 className="page-title text-[#1A1A1A]">
+        <h1 className="text-3xl font-semibold text-[#1A1A1A]">
           Skema <span className="text-[#1A1A1A]/40">Kategori</span>
         </h1>
         <p className="mt-2 text-[#1A1A1A]/50 text-sm">

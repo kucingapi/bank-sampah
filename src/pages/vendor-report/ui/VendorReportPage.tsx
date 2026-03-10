@@ -203,6 +203,23 @@ export function VendorReportPage({ eventId }: Props) {
     return categoryItems.length > 0 && categoryItems.every(item => vendorMappings[item.categoryId] !== undefined);
   }, [categoryItems, vendorMappings]);
 
+  const grandTotalPayout = categoryItems.reduce((sum, item) => sum + item.totalPayout, 0);
+  
+  const summaryText = useMemo(() => {
+    const kgTotal = categoryItems.filter(i => i.unit === 'kg').reduce((sum, i) => sum + i.totalWeight, 0);
+    const pcItems = categoryItems.filter(i => i.unit === 'pc');
+    
+    const parts: string[] = [];
+    if (kgTotal > 0 || pcItems.length === 0) {
+      parts.push(`${kgTotal.toFixed(2)} KG`);
+    }
+    pcItems.forEach(i => {
+      parts.push(`${i.totalWeight} PC ${i.name}`);
+    });
+    
+    return parts.join(', ');
+  }, [categoryItems]);
+
   const handleSubmit = async () => {
     if (!isFullyAssigned || categoryItems.length === 0 || !defaultVendorIds) return;
     
@@ -254,23 +271,6 @@ export function VendorReportPage({ eventId }: Props) {
     return <VendorReportPageSkeleton />;
   }
 
-  const grandTotalPayout = categoryItems.reduce((sum, item) => sum + item.totalPayout, 0);
-  
-  const summaryText = useMemo(() => {
-    const kgTotal = categoryItems.filter(i => i.unit === 'kg').reduce((sum, i) => sum + i.totalWeight, 0);
-    const pcItems = categoryItems.filter(i => i.unit === 'pc');
-    
-    const parts: string[] = [];
-    if (kgTotal > 0 || pcItems.length === 0) {
-      parts.push(`${kgTotal.toFixed(2)} KG`);
-    }
-    pcItems.forEach(i => {
-      parts.push(`${i.totalWeight} PC ${i.name}`);
-    });
-    
-    return parts.join(', ');
-  }, [categoryItems]);
-
   return (
     <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6 print:border-none">
@@ -279,7 +279,7 @@ export function VendorReportPage({ eventId }: Props) {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="page-title text-[#1A1A1A]">
+            <h1 className="text-3xl font-semibold text-[#1A1A1A]">
               Manifest <span className="text-[#1A1A1A]/40">Keluaran</span>
             </h1>
             <p className="mt-2 text-[#1A1A1A]/50 text-sm">Distribusi penjualan material sesi {new Date(event.event_date).toLocaleDateString('id-ID')}.</p>

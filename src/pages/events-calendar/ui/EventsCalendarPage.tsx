@@ -1,11 +1,21 @@
 import { useState } from "react"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { useEvents, useCreateEvent } from "@/entities/event/api/hooks"
+import { useEvents, useCreateEvent, useActiveEvent } from "@/entities/event/api/hooks"
 import type { Event } from "@/entities/event/model/types"
 import { Button } from "@/shared/ui/ui/button"
 import { Badge } from "@/shared/ui/ui/badge"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
 import { cn } from "@/shared/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/ui/alert-dialog"
 
 function EventsCalendarPageSkeleton() {
   return (
@@ -46,8 +56,10 @@ function EventsCalendarPageSkeleton() {
 export function EventsCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
   const [loadingDay, setLoadingDay] = useState<string | null>(null)
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
   const { data: events = [], isLoading } = useEvents()
   const createEvent = useCreateEvent()
+  const activeEvent = useActiveEvent()
 
   const todayStr = new Date().toLocaleDateString("en-CA")
 
@@ -91,6 +103,8 @@ export function EventsCalendarPage() {
         detail: { view: "event-details", eventId: existingEvent.id },
       })
       window.dispatchEvent(navEvent)
+    } else if (activeEvent) {
+      setConflictDialogOpen(true)
     } else {
       setLoadingDay(dateStr)
       try {
@@ -107,6 +121,16 @@ export function EventsCalendarPage() {
     }
   }
 
+  const handleNavigateToActiveSession = () => {
+    if (activeEvent) {
+      const navEvent = new CustomEvent("navigate", {
+        detail: { view: "event-details", eventId: activeEvent.id },
+      })
+      window.dispatchEvent(navEvent)
+    }
+    setConflictDialogOpen(false)
+  }
+
   if (isLoading) {
     return <EventsCalendarPageSkeleton />
   }
@@ -115,7 +139,7 @@ export function EventsCalendarPage() {
     <div className="p-12 max-w-5xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
         <div>
-          <h1 className="page-title text-[#1A1A1A]">
+          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
             Jadwal <span className="text-[#1A1A1A]/40">Penyetoran</span>
           </h1>
           <p className="mt-4 text-[#1A1A1A]/50 text-sm">
@@ -231,6 +255,39 @@ export function EventsCalendarPage() {
           )
         })}
       </div>
+
+      <AlertDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
+        <AlertDialogContent className="bg-[#F9F9F8] border-[#1A1A1A]/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[#1A1A1A]">Sesi Masih Aktif</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#1A1A1A]/60">
+              Ada sesi aktif pada{' '}
+              <span className="font-medium text-[#1A1A1A]">
+                {activeEvent?.event_date
+                  ? new Date(activeEvent.event_date).toLocaleDateString('id-ID', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'tanggal ini'}
+              </span>
+              . Apakah Anda ingin membuka sesi yang sudah ada atau membuat sesi baru?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-[#1A1A1A]/20 text-[#1A1A1A] hover:bg-[#1A1A1A]/5">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleNavigateToActiveSession}
+              className="bg-[#1A1A1A] text-[#F9F9F8] hover:bg-[#1A1A1A]/90"
+            >
+              Pergi ke Sesi Aktif
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

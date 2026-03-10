@@ -8,7 +8,7 @@ export const queryKeys = {
   },
   members: {
     all: ['members'] as const,
-    list: (filters?: { search?: string; dateStart?: string; dateEnd?: string }) =>
+    list: (filters?: { search?: string; eventDateStart?: string; eventDateEnd?: string }) =>
       [...queryKeys.members.all, 'list', filters] as const,
     earnings: (id: number) => [...queryKeys.members.all, 'earnings', id] as const,
   },

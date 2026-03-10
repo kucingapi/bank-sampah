@@ -10,6 +10,7 @@ import {
   updateEventRate,
   getEventCategoryTotals,
 } from './queries';
+import type { Event } from '../model/types';
 
 export function useEvents() {
   return useQuery({
@@ -24,6 +25,14 @@ export function useEvent(id: string) {
     queryFn: () => getEvent(id),
     enabled: !!id,
   });
+}
+
+export function useActiveEvent() {
+  const { data: events = [] } = useQuery({
+    queryKey: queryKeys.events.list(),
+    queryFn: listEvents,
+  });
+  return events.find((e: Event) => e.status === 'active') || null;
 }
 
 export function useEventRates(eventId: string) {
