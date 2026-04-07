@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEvent, useEventCategoryTotals } from '@/entities/event/api/hooks';
 import { useVendors, useCreateVendor } from '@/entities/vendor/api/hooks';
@@ -159,7 +159,7 @@ export function VendorReportPage({ eventId }: Props) {
     if (!newVendorName.trim()) return;
     setIsAddingVendor(true);
     try {
-      const vendor = await createVendor.mutateAsync(newVendorName.trim());
+      await createVendor.mutateAsync(newVendorName.trim());
       setNewVendorName('');
       // Optionally auto-assign selected categories to new vendor here if needed
     } catch (err) {

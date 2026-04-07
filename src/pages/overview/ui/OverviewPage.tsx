@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { useDashboardStats, useCategoryBreakdown } from "../api/hooks"
 import { formatCurrency } from "@/shared/lib/format"
-import { TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
 import { Progress } from "@/shared/ui/ui/progress"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
