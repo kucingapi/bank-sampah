@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle, X } from "lucide-react"
+import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle, X, Trash2 } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   useEvent,
@@ -7,6 +7,7 @@ import {
   useSyncEventRates,
   useEventRates,
   useUpdateEventRate,
+  useDeleteEvent,
 } from "@/entities/event/api/hooks"
 import { useDeposits } from "@/entities/deposit/api/hooks"
 import { useHasManifest, useDeleteManifestsByEvent } from "@/entities/manifest/api/hooks"
@@ -106,6 +107,7 @@ function EventDetailsPageSkeleton() {
 
 export function EventDetailsPage({ eventId }: Props) {
   const [showReactivationWarning, setShowReactivationWarning] = useState(false)
+  const [showDeleteWarning, setShowDeleteWarning] = useState(false)
   const [localRates, setLocalRates] = useState<Record<string, { rate: number; active: number }>>({})
   const [savedRates, setSavedRates] = useState<Record<string, { rate: number; active: number }>>({})
   const [ratesLoaded, setRatesLoaded] = useState(false)
@@ -120,6 +122,7 @@ export function EventDetailsPage({ eventId }: Props) {
   const syncRates = useSyncEventRates()
   const updateRate = useUpdateEventRate()
   const deleteManifests = useDeleteManifestsByEvent()
+  const deleteEvent = useDeleteEvent()
 
   const handleSyncRates = async () => {
     try {
@@ -148,6 +151,17 @@ export function EventDetailsPage({ eventId }: Props) {
     }
     await updateStatus.mutateAsync({ id: eventId, status: "active" })
     setShowReactivationWarning(false)
+  }
+
+  const handleDeleteEvent = async () => {
+    try {
+      await deleteEvent.mutateAsync(eventId)
+      window.dispatchEvent(
+        new CustomEvent("navigate", { detail: { view: "calendar" } })
+      )
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const handleBack = () => {
@@ -326,11 +340,11 @@ export function EventDetailsPage({ eventId }: Props) {
             <ArrowLeft className="size-5" />
           </Button>
           <div>
-            <h1 className="page-title text-[#1A1A1A]">
-              Detail <span className="text-[#1A1A1A]/40">Sesi</span>
+            <h1 className="page-title text-foreground">
+              Detail <span className="text-muted-foreground/60">Sesi</span>
             </h1>
             <div className="mt-4 flex items-center gap-4 text-sm">
-              <span className="font-medium text-[#1A1A1A]">
+              <span className="font-medium text-foreground">
                 {new Date(event.event_date).toLocaleDateString("id-ID", {
                   weekday: "long",
                   day: "numeric",
@@ -338,7 +352,7 @@ export function EventDetailsPage({ eventId }: Props) {
                   year: "numeric",
                 })}
               </span>
-              <span className="text-[#1A1A1A]/20">|</span>
+              <span className="text-muted-foreground/20">|</span>
               <Badge
                 variant={event.status === "active" ? "default" : "secondary"}
                 className="uppercase tracking-wider"
@@ -366,7 +380,6 @@ export function EventDetailsPage({ eventId }: Props) {
             <Button
               onClick={() => updateStatus.mutate({ id: eventId, status: "finished" })}
               variant="outline"
-              className="border-black text-black hover:bg-black hover:text-white"
             >
               <CheckCircle2 className="size-4 mr-2" />
               Selesai
@@ -374,7 +387,6 @@ export function EventDetailsPage({ eventId }: Props) {
           ) : (
             <Button
               onClick={handleToggleStatus}
-              className="bg-black hover:bg-black/80"
             >
               Aktifkan
             </Button>
@@ -385,13 +397,20 @@ export function EventDetailsPage({ eventId }: Props) {
               Tambah Setoran
             </Button>
           ) : (
-            <Button onClick={handleGenerateReport} variant={hasManifest === false ? "outline" : "default"} className={hasManifest === false ? "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100" : ""}>
+            <Button onClick={handleGenerateReport} variant={hasManifest === false ? "outline" : "default"} >
               {hasManifest === false && <AlertCircle className="size-4 mr-2" />}
               <FileText className="size-4" />
               Laporan Vendor
               {hasManifest === false && <span className="ml-2 text-xs">(Belum Ada)</span>}
             </Button>
           )}
+          <Button
+            onClick={() => setShowDeleteWarning(true)}
+            variant="destructive"
+          >
+            <Trash2 className="size-4 " />
+            Hapus Sesi
+          </Button>
         </div>
       </header>
 
@@ -432,7 +451,7 @@ export function EventDetailsPage({ eventId }: Props) {
               disabled={updateRate.isPending}
               size="sm"
               variant={isEditingRates ? "default" : "outline"}
-              className={isEditingRates ? "bg-black hover:bg-black/80" : ""}
+              className={isEditingRates ? "bg-foreground hover:bg-foreground/80" : ""}
             >
               <Save className="size-3" />
               <span className="ml-2">{isEditingRates ? "Simpan" : "Edit"}</span>
@@ -492,7 +511,7 @@ export function EventDetailsPage({ eventId }: Props) {
         <div className="col-span-2 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h2 className="section-header">Buku Besar Setoran</h2>
-            <span className="text-sm font-medium text-[#1A1A1A]/50">
+            <span className="text-sm font-medium text-muted-foreground">
               {depositsWithDetails.length} transaksi
             </span>
           </div>
@@ -502,7 +521,7 @@ export function EventDetailsPage({ eventId }: Props) {
               <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
                 <Plus className="size-8 text-muted-foreground" />
               </div>
-              <p className="text-lg font-medium text-[#1A1A1A]">
+              <p className="text-lg font-medium text-foreground">
                 Belum ada transaksi
               </p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -519,7 +538,7 @@ export function EventDetailsPage({ eventId }: Props) {
           <Card>
             <CardContent className="flex flex-col gap-6 pt-6">
               <div>
-                <p className="micro-label text-[#1A1A1A]/50 mb-2">
+                <p className="micro-label text-muted-foreground mb-2">
                   Total Dana Disalurkan
                 </p>
                 <p className="text-3xl font-medium tracking-tight">
@@ -530,10 +549,10 @@ export function EventDetailsPage({ eventId }: Props) {
               <Separator />
 
               <div>
-                <p className="micro-label text-[#1A1A1A]/50 mb-4">
+                <p className="micro-label text-muted-foreground mb-4">
                   Informasi Harga Rate
                 </p>
-                <p className="text-sm text-[#1A1A1A]/60 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Harga material pada sesi ini dikunci agar tidak terpengaruh oleh
                   perubahan harga di masa depan. Gunakan tombol "Nilai Tukar Aktif" 
                   untuk mengubah harga per kategori, atau "Sinkronisasi Harga Dasar" 
@@ -552,6 +571,17 @@ export function EventDetailsPage({ eventId }: Props) {
         title="Aktifkan Ulang Sesi?"
         message="Sesi ini sebelumnya telah ditutup (SELESAI). Mengaktifkan kembali akan menghapus semua Laporan Vendor yang telah dibuat. Apakah Anda yakin ingin mengaktifkan ulang sesi ini?"
         confirmLabel="Aktifkan"
+        cancelLabel="Batal"
+        variant="primary"
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteWarning}
+        onClose={() => setShowDeleteWarning(false)}
+        onConfirm={handleDeleteEvent}
+        title="Hapus Sesi?"
+        message="Tindakan ini akan menghapus sesi secara permanen beserta semua data setoran, item setoran, rate acara, dan manifest vendor. Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus Sesi"
         cancelLabel="Batal"
         variant="danger"
       />

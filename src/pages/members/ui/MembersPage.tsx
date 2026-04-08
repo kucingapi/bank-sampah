@@ -40,7 +40,7 @@ function TableSkeleton() {
 
 function StatsSkeleton() {
   return (
-    <Card className="bg-[#1A1A1A]">
+    <Card className="bg-card">
       <CardHeader>
         <div className="flex items-center gap-3 opacity-70">
           <TrendingUp className="size-4" />
@@ -51,13 +51,13 @@ function StatsSkeleton() {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div>
-          <Skeleton className="h-3 w-24 bg-white/20" />
-          <Skeleton className="h-8 w-16 mt-2 bg-white/30" />
+          <Skeleton className="h-3 w-24 bg-muted/30" />
+          <Skeleton className="h-8 w-16 mt-2 bg-muted/70" />
         </div>
-        <Separator className="bg-white/10" />
+        <Separator className="bg-muted/30" />
         <div>
-          <Skeleton className="h-3 w-20 bg-white/20" />
-          <Skeleton className="h-6 w-32 mt-2 bg-white/30" />
+          <Skeleton className="h-3 w-20 bg-muted/30" />
+          <Skeleton className="h-6 w-32 mt-2 bg-muted/70" />
         </div>
       </CardContent>
     </Card>
@@ -146,12 +146,12 @@ export function MembersPage() {
 
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-            Direktori <span className="text-[#1A1A1A]/40">Anggota</span>
+          <h1 className="text-3xl font-semibold text-foreground">
+            Direktori <span className="text-muted-foreground/60">Anggota</span>
           </h1>
-          <p className="mt-2 text-[#1A1A1A]/50 text-sm">
+          <p className="mt-2 text-muted-foreground text-sm">
             Basis data nasabah aktif dan riwayat pendapatan.
           </p>
         </div>
@@ -163,12 +163,12 @@ export function MembersPage() {
         </div>
       </header>
 
-      <div className="flex items-center gap-6 p-4 bg-[#F9F9F8] border border-[#1A1A1A]/10 rounded-lg">
+      <div className="flex items-center gap-6 p-4 bg-muted border border-border rounded-lg">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[#1A1A1A]/40" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Cari berdasarkan ID atau Nama..."
-            className="pl-12 bg-white border-none focus-visible:ring-0"
+            className="pl-12 bg-background border-none focus-visible:ring-0"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -213,7 +213,7 @@ export function MembersPage() {
           {isLoading ? (
             <StatsSkeleton />
           ) : (
-            <Card className="bg-[#1A1A1A] text-[#F9F9F8]">
+            <Card className="bg-card text-card-foreground">
               <CardHeader>
                 <div className="flex items-center gap-3 opacity-70">
                   <TrendingUp className="size-4" />
@@ -224,7 +224,7 @@ export function MembersPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-6">
                 <div>
-                  <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">
+                  <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">
                     Total Hasil Cari
                   </p>
                   <p className="text-3xl font-medium tracking-tight tabular-nums">
@@ -232,10 +232,10 @@ export function MembersPage() {
                   </p>
                 </div>
 
-                <Separator className="bg-white/10" />
+                <Separator className="bg-border" />
 
                 <div>
-                  <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">
+                  <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">
                     Total Rp (Filter)
                   </p>
                   <p className="text-xl font-medium tracking-tight tabular-nums text-green-400">

@@ -11,7 +11,7 @@ import { StatsCardSkeleton } from "@/shared/ui/skeletons"
 function OverviewPageSkeleton() {
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -63,12 +63,12 @@ export function OverviewPage() {
 
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-            Overview <span className="text-[#1A1A1A]/40">Dasbor</span>
+          <h1 className="text-3xl font-semibold text-foreground">
+            Tinjauan <span className="text-muted-foreground/60">Dasbor</span>
           </h1>
-          <p className="mt-4 text-[#1A1A1A]/50 text-sm">
+          <p className="mt-4 text-muted-foreground text-sm">
             Ringkasan operasional dan metrik fasilitas.
           </p>
         </div>
@@ -84,7 +84,7 @@ export function OverviewPage() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="micro-label text-[#1A1A1A]/50 font-normal">
+            <CardTitle className="micro-label text-muted-foreground font-normal">
               Total Terkumpul
             </CardTitle>
           </CardHeader>
@@ -93,14 +93,14 @@ export function OverviewPage() {
               <span className="text-4xl font-medium tracking-tight">
                 {safeStats.totalWeight.toLocaleString("id-ID")}
               </span>
-              <span className="text-[#1A1A1A]/50 font-medium">kg</span>
+              <span className="text-muted-foreground font-medium">kg</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="micro-label text-[#1A1A1A]/50 font-normal">
+            <CardTitle className="micro-label text-muted-foreground font-normal">
               Dana Disalurkan
             </CardTitle>
           </CardHeader>
@@ -115,7 +115,7 @@ export function OverviewPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="micro-label text-[#1A1A1A]/50 font-normal">
+            <CardTitle className="micro-label text-muted-foreground font-normal">
               Anggota Aktif
             </CardTitle>
           </CardHeader>
@@ -124,7 +124,7 @@ export function OverviewPage() {
               <span className="text-4xl font-medium tracking-tight">
                 {safeStats.activeMembers}
               </span>
-              <span className="text-[#1A1A1A]/50 font-medium">entitas</span>
+              <span className="text-muted-foreground font-medium">entitas</span>
             </div>
           </CardContent>
         </Card>
@@ -147,7 +147,7 @@ export function OverviewPage() {
               </div>
             ))
           ) : breakdown.length === 0 ? (
-            <div className="text-[#1A1A1A]/40 text-sm py-4 border-t border-[#1A1A1A]/5">
+            <div className="text-muted-foreground text-sm py-4 border-t border-border">
               Belum ada data material tercatat.
             </div>
           ) : (
@@ -156,7 +156,7 @@ export function OverviewPage() {
                 <div className="flex justify-between items-end text-sm">
                   <span className="font-medium">{item.name}</span>
                   <div className="flex gap-4">
-                    <span className="text-[#1A1A1A]/50">
+                    <span className="text-muted-foreground">
                       {item.totalWeight.toLocaleString("id-ID")} kg
                     </span>
                     <Badge variant="secondary" className="w-12 justify-center">

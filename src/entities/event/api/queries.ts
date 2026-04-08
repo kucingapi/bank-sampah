@@ -81,8 +81,8 @@ export async function updateEventRate(eventId: string, categoryId: string, activ
 export async function getEventCategoryTotals(eventId: string): Promise<{categoryId: string, totalWeight: number, totalPayout: number}[]> {
   const db = await getDb();
   const res = await db.select<{category_id: string, total_weight: number, active_rate: number}[]>(`
-    SELECT 
-      di.category_id, 
+    SELECT
+      di.category_id,
       SUM(di.weight) as total_weight,
       er.active_rate
     FROM deposit_item di
@@ -97,6 +97,34 @@ export async function getEventCategoryTotals(eventId: string): Promise<{category
     totalWeight: r.total_weight,
     totalPayout: r.total_weight * r.active_rate
   }));
+}
+
+export async function deleteEvent(id: string): Promise<void> {
+  const db = await getDb();
+
+  // Delete manifest items
+  await db.execute(
+    `DELETE FROM manifest_item WHERE manifest_id IN (SELECT id FROM vendor_manifest WHERE event_id = $1)`,
+    [id]
+  );
+
+  // Delete vendor manifests
+  await db.execute('DELETE FROM vendor_manifest WHERE event_id = $1', [id]);
+
+  // Delete deposit items
+  await db.execute(
+    `DELETE FROM deposit_item WHERE deposit_id IN (SELECT id FROM deposit WHERE event_id = $1)`,
+    [id]
+  );
+
+  // Delete deposits
+  await db.execute('DELETE FROM deposit WHERE event_id = $1', [id]);
+
+  // Delete event rates
+  await db.execute('DELETE FROM event_rate WHERE event_id = $1', [id]);
+
+  // Delete event
+  await db.execute('DELETE FROM event WHERE id = $1', [id]);
 }
 
 export async function createManifest(eventId: string, assignments: {categoryId: string, vendorId: string}[]): Promise<void> {

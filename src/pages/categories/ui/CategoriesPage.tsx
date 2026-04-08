@@ -36,7 +36,7 @@ import {
 function CategoriesPageSkeleton() {
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="border-b border-[#1A1A1A]/10 pb-8 pt-2">
+      <header className="border-b border-border pb-8 pt-2">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-64 mt-4" />
       </header>
@@ -198,11 +198,11 @@ export function CategoriesPage() {
 
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="border-b border-[#1A1A1A]/10 pb-8 pt-2">
-        <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-          Skema <span className="text-[#1A1A1A]/40">Kategori</span>
+      <header className="border-b border-border pb-8 pt-2">
+        <h1 className="text-3xl font-semibold text-foreground">
+          Skema <span className="text-muted-foreground/60">Kategori</span>
         </h1>
-        <p className="mt-2 text-[#1A1A1A]/50 text-sm">
+        <p className="mt-2 text-muted-foreground text-sm">
           Pengaturan master material, harga dasar, dan satuan ukur.
         </p>
       </header>
@@ -214,7 +214,7 @@ export function CategoriesPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div>
-              <label className="micro-label text-[#1A1A1A]/50 mb-2 block">
+              <label className="micro-label text-muted-foreground mb-2 block">
                 Nama Material
               </label>
               <Input
@@ -222,13 +222,13 @@ export function CategoriesPage() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
               />
-              <p className="text-xs text-[#1A1A1A]/30 mt-2 font-mono break-all">
+              <p className="text-xs text-muted-foreground/40 mt-2 font-mono break-all">
                 ID: {safeIdPreview || "akan-dihasilkan-otomatis"}
               </p>
             </div>
 
             <div>
-              <label className="micro-label text-[#1A1A1A]/50 mb-2 block">
+              <label className="micro-label text-muted-foreground mb-2 block">
                 Satuan (Unit)
               </label>
               <Tabs value={newUnit} onValueChange={(value: string) => setNewUnit(value as "kg" | "pc")}>
@@ -244,7 +244,7 @@ export function CategoriesPage() {
             </div>
 
             <div>
-              <label className="micro-label text-[#1A1A1A]/50 mb-2 block">
+              <label className="micro-label text-muted-foreground mb-2 block">
                 Harga Dasar (Rp)
               </label>
               <Input
@@ -273,7 +273,7 @@ export function CategoriesPage() {
               <h2 className="section-header">Daftar Material</h2>
               <ExportCSVButton onExport={handleExport} filename="categories" />
             </div>
-            <span className="text-sm font-medium text-[#1A1A1A]/50">
+            <span className="text-sm font-medium text-muted-foreground">
               {categories.length} entri
             </span>
           </div>
@@ -359,7 +359,7 @@ export function CategoriesPage() {
             </Table>
           </div>
 
-          <p className="text-[#1A1A1A]/40 text-xs leading-relaxed max-w-xl">
+          <p className="text-muted-foreground/60 text-xs leading-relaxed max-w-xl">
             Perubahan Harga Dasar secara langsung (in-line edit) tidak mengubah
             riwayat data pada Sesi Aktif maupun Sesi Selesai. Harga baru akan
             diterapkan pada pembuatan Sesi berikutnya, atau dengan melakukan

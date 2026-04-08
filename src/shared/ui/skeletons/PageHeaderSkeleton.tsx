@@ -8,7 +8,7 @@ interface PageHeaderSkeletonProps {
 
 export function PageHeaderSkeleton({ hasBackButton = false, hasActions = false }: PageHeaderSkeletonProps) {
   return (
-    <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+    <header className="flex items-end justify-between border-b border-border pb-6">
       <div className="flex items-center gap-6">
         {hasBackButton && (
           <Button variant="ghost" size="icon" disabled className="opacity-50">

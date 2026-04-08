@@ -40,7 +40,7 @@ interface RateWithDetails extends EventRate {
 function EventEntryPageSkeleton() {
   return (
     <div className="p-12 max-w-4xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-center gap-6 border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-center gap-6 border-b border-border pb-6">
         <Skeleton className="size-10 rounded-md" />
         <div className="flex flex-col gap-4">
           <Skeleton className="h-8 w-48" />
@@ -230,15 +230,15 @@ export function EventEntryPage({ eventId, depositId }: Props) {
 
   return (
     <div className="p-12 max-w-4xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-center gap-6 border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-center gap-6 border-b border-border pb-6">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="size-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-            {isEditMode ? "Perbarui" : "Terminal"} <span className="text-[#1A1A1A]/40">Setoran</span>
+          <h1 className="text-3xl font-semibold text-foreground">
+            {isEditMode ? "Perbarui" : "Terminal"} <span className="text-muted-foreground/60">Setoran</span>
           </h1>
-          <p className="mt-2 text-[#1A1A1A]/50 text-sm">
+          <p className="mt-2 text-muted-foreground text-sm">
             {isEditMode 
               ? "Perbarui data timbangan dan kalkulasi." 
               : "Pencatatan data timbangan dan kalkulasi otomatis."}
@@ -297,12 +297,12 @@ export function EventEntryPage({ eventId, depositId }: Props) {
                 </PopoverContent>
               </Popover>
             ) : (
-              <div className="flex items-center justify-between p-4 bg-[#1A1A1A]/5 rounded-xl border border-[#1A1A1A]/10">
+              <div className="flex items-center justify-between p-4 bg-accent rounded-xl border border-border">
                 <div>
-                  <p className="font-medium text-[#1A1A1A]">
+                  <p className="font-medium text-foreground">
                     {selectedMember.name}
                   </p>
-                  <p className="text-xs text-[#1A1A1A]/50 font-mono mt-1">
+                  <p className="text-xs text-muted-foreground font-mono mt-1">
                     ID: {selectedMember.id}
                   </p>
                 </div>
@@ -321,13 +321,13 @@ export function EventEntryPage({ eventId, depositId }: Props) {
             <h2 className="section-header">Data Timbangan</h2>
             <div className="grid grid-cols-2 gap-x-8 gap-y-6">
               {rates.length === 0 ? (
-                <div className="col-span-2 py-4 text-sm text-[#1A1A1A]/40">
+                <div className="col-span-2 py-4 text-sm text-muted-foreground">
                   Belum ada sinkronisasi harga kategori.
                 </div>
               ) : (
                 rates.map((rate) => (
                   <div key={rate.category_id} className="relative group">
-                    <label className="micro-label text-[#1A1A1A]/50 mb-1 flex justify-between items-center">
+                    <label className="micro-label text-muted-foreground mb-1 flex justify-between items-center">
                       <span>{rate.name}</span>
                       <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
                         @ {formatCurrency(rate.active_rate)}/{rate.unit}
@@ -339,14 +339,14 @@ export function EventEntryPage({ eventId, depositId }: Props) {
                         min="0"
                         step={rate.unit === "pc" ? "1" : "0.01"}
                         placeholder={rate.unit === "pc" ? "0" : "0.0"}
-                        className="pr-8 tabular-nums font-medium bg-white"
+                        className="pr-8 tabular-nums font-medium bg-background"
                         value={weights[rate.category_id] || ""}
                         onChange={(e) =>
                           handleWeightChange(rate.category_id, e.target.value)
                         }
                         disabled={!selectedMember}
                       />
-                      <span className="absolute right-0 top-3 text-[#1A1A1A]/30 text-sm pointer-events-none uppercase tracking-widest">
+                      <span className="absolute right-0 top-3 text-muted-foreground/50 text-sm pointer-events-none uppercase tracking-widest">
                         {rate.unit}
                       </span>
                     </div>
@@ -361,7 +361,7 @@ export function EventEntryPage({ eventId, depositId }: Props) {
           <Card className="sticky top-12 flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <Calculator className="size-5 text-[#1A1A1A]/40" />
+                <Calculator className="size-5 text-muted-foreground" />
                 <CardTitle className="section-header">Kalkulasi</CardTitle>
               </div>
             </CardHeader>
@@ -369,10 +369,10 @@ export function EventEntryPage({ eventId, depositId }: Props) {
               {Object.keys(weights).filter(k => weights[k] > 0).length > 0 && (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#1A1A1A]/10">
-                      <th className="text-left py-3 text-xs font-medium text-[#1A1A1A]/40 uppercase tracking-wider">Kategori</th>
-                      <th className="text-right py-3 text-xs font-medium text-[#1A1A1A]/40 uppercase tracking-wider">Berat</th>
-                      <th className="text-right py-3 text-xs font-medium text-[#1A1A1A]/40 uppercase tracking-wider">Total</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Kategori</th>
+                      <th className="text-right py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Berat</th>
+                      <th className="text-right py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -384,13 +384,13 @@ export function EventEntryPage({ eventId, depositId }: Props) {
                       return (
                         <tr
                           key={catId}
-                          className="border-b border-[#1A1A1A]/5 animate-in fade-in zoom-in-95"
+                          className="border-b border-border animate-in fade-in zoom-in-95"
                         >
-                          <td className="py-3 text-[#1A1A1A]/80">{rate.name}</td>
-                          <td className="py-3 text-right tabular-nums text-[#1A1A1A]/50 font-mono">
-                            {weight.toLocaleString("id-ID", { minimumFractionDigits: rate.unit === "pc" ? 0 : 2, maximumFractionDigits: rate.unit === "pc" ? 0 : 2 })} <span className="text-[#1A1A1A]/30">{rate.unit}</span>
+                          <td className="py-3 text-foreground/80">{rate.name}</td>
+                          <td className="py-3 text-right tabular-nums text-muted-foreground font-mono">
+                            {weight.toLocaleString("id-ID", { minimumFractionDigits: rate.unit === "pc" ? 0 : 2, maximumFractionDigits: rate.unit === "pc" ? 0 : 2 })} <span className="text-muted-foreground/50">{rate.unit}</span>
                           </td>
-                          <td className="py-3 text-right tabular-nums font-medium text-[#1A1A1A]">
+                          <td className="py-3 text-right tabular-nums font-medium text-foreground">
                             {formatCurrency(subtotal)}
                           </td>
                         </tr>
@@ -400,15 +400,15 @@ export function EventEntryPage({ eventId, depositId }: Props) {
                 </table>
               )}
               {Object.keys(weights).filter(k => weights[k] > 0).length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-[#1A1A1A]/30 text-sm py-12">
+                <div className="flex-1 flex items-center justify-center text-muted-foreground/50 text-sm py-12">
                   Masukkan berat untuk melihat kalkulasi
                 </div>
               )}
             </CardContent>
-            <div className="p-6 pt-4 mt-auto border-t border-[#1A1A1A]/10 bg-[#1A1A1A]/2">
+            <div className="p-6 pt-4 mt-auto border-t border-border bg-accent/5">
               <div className="flex justify-between items-end">
                 <div>
-                  <p className="micro-label text-[#1A1A1A]/50 mb-1">
+                  <p className="micro-label text-muted-foreground mb-1">
                     Total Pembayaran
                   </p>
                   <p className="text-3xl font-medium tracking-tight tabular-nums transition-all">

@@ -34,7 +34,7 @@ interface VendorGroup {
 function VendorReportPageSkeleton() {
   return (
     <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex items-center gap-6">
           <Skeleton className="size-10 rounded-full" />
           <div className="flex flex-col gap-4">
@@ -273,16 +273,16 @@ export function VendorReportPage({ eventId }: Props) {
 
   return (
     <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6 print:border-none">
+      <header className="flex items-end justify-between border-b border-border pb-6 print:border-none">
         <div className="flex items-center gap-6">
-          <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-[#1A1A1A]/5 transition-colors text-[#1A1A1A]/50 hover:text-[#1A1A1A] print:hidden">
+          <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground print:hidden">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-              Manifest <span className="text-[#1A1A1A]/40">Keluaran</span>
+            <h1 className="text-3xl font-semibold text-foreground">
+              Manifest <span className="text-muted-foreground/60">Keluaran</span>
             </h1>
-            <p className="mt-2 text-[#1A1A1A]/50 text-sm">Distribusi penjualan material sesi {new Date(event.event_date).toLocaleDateString('id-ID')}.</p>
+            <p className="mt-2 text-muted-foreground text-sm">Distribusi penjualan material sesi {new Date(event.event_date).toLocaleDateString('id-ID')}.</p>
           </div>
         </div>
         
@@ -315,7 +315,7 @@ export function VendorReportPage({ eventId }: Props) {
           <input
             type="text"
             placeholder="Tambah vendor baru cepat..."
-            className="flex-1 bg-transparent border-b border-[#1A1A1A]/10 pb-1 text-sm focus:outline-none focus:border-primary transition-colors"
+            className="flex-1 bg-transparent border-b border-border pb-1 text-sm focus:outline-none focus:border-primary transition-colors"
             value={newVendorName}
             onChange={e => setNewVendorName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleQuickAddVendor()}

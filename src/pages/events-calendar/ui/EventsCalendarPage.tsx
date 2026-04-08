@@ -20,30 +20,30 @@ import {
 function EventsCalendarPageSkeleton() {
   return (
     <div className="p-12 max-w-5xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-4 w-64" />
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-2 border border-[#1A1A1A]/20 rounded-full">
+        <div className="flex items-center gap-2 px-4 py-2 border border-border/20 rounded-full">
           <Skeleton className="size-6" />
           <Skeleton className="h-5 w-32" />
           <Skeleton className="size-6" />
         </div>
       </header>
 
-      <div className="grid grid-cols-7 gap-px bg-[#1A1A1A]/10 border border-[#1A1A1A]/10 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-7 gap-px bg-border border border-border rounded-lg overflow-hidden">
         {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day) => (
           <div
             key={day}
-            className="bg-[#F9F9F8] p-4 text-center"
+            className="bg-muted p-4 text-center"
           >
             <Skeleton className="h-4 w-6 mx-auto" />
           </div>
         ))}
         {Array.from({ length: 35 }).map((_, i) => (
-          <div key={i} className="bg-[#F9F9F8] p-4 min-h-[120px] flex flex-col items-start justify-between">
+          <div key={i} className="bg-muted p-4 min-h-[120px] flex flex-col items-start justify-between">
             <Skeleton className="size-6 rounded-full" />
             <Skeleton className="h-5 w-16 mt-4" />
           </div>
@@ -137,18 +137,18 @@ export function EventsCalendarPage() {
 
   return (
     <div className="p-12 max-w-5xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-[#1A1A1A]/10 pb-6">
+      <header className="flex items-end justify-between border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-            Jadwal <span className="text-[#1A1A1A]/40">Penyetoran</span>
+          <h1 className="text-3xl font-semibold text-foreground">
+            Jadwal <span className="text-muted-foreground/60">Penyetoran</span>
           </h1>
-          <p className="mt-4 text-[#1A1A1A]/50 text-sm">
+          <p className="mt-4 text-muted-foreground text-sm">
             Kalender operasional dan daftar sesi aktif.
           </p>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 border border-[#1A1A1A]/20 rounded-full font-medium text-sm">
+          <div className="flex items-center gap-2 px-4 py-2 border border-border/20 rounded-full font-medium text-sm">
             <Button
               variant="ghost"
               size="icon"
@@ -175,18 +175,18 @@ export function EventsCalendarPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-7 gap-px bg-[#1A1A1A]/10 border border-[#1A1A1A]/10 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-7 gap-px bg-border border border-border rounded-lg overflow-hidden">
         {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day) => (
           <div
             key={day}
-            className="bg-[#F9F9F8] p-4 text-center micro-label text-[#1A1A1A]/50"
+            className="bg-muted p-4 text-center micro-label text-muted-foreground"
           >
             {day}
           </div>
         ))}
 
         {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-[#F9F9F8]/50 p-4 min-h-[120px]" />
+          <div key={`empty-${i}`} className="bg-muted/50 p-4 min-h-[120px]" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -208,7 +208,7 @@ export function EventsCalendarPage() {
               onClick={() => handleDateClick(day)}
               disabled={isLoading}
               className={cn(
-                "group bg-[#F9F9F8] p-4 min-h-[120px] flex flex-col items-start justify-between hover:bg-[#1A1A1A]/[0.02] transition-colors text-left relative",
+                "group bg-muted p-4 min-h-[120px] flex flex-col items-start justify-between hover:bg-accent transition-colors text-left relative",
                 isLoading && "cursor-wait"
               )}
             >
@@ -216,8 +216,8 @@ export function EventsCalendarPage() {
                 className={cn(
                   "text-sm font-medium",
                   isToday
-                    ? "size-8 rounded-full bg-[#1A1A1A] text-[#F9F9F8] flex items-center justify-center -ml-1.5 -mt-1.5"
-                    : "text-[#1A1A1A]/60"
+                    ? "size-8 rounded-full bg-foreground text-background flex items-center justify-center -ml-1.5 -mt-1.5"
+                    : "text-muted-foreground"
                 )}
               >
                 {day}
@@ -232,11 +232,11 @@ export function EventsCalendarPage() {
                   <div className="flex items-center gap-2">
                     {dayEvent.status === "active" ? (
                       <span className="relative flex size-3">
-                        <span className="animate-ping absolute inline-flex size-full rounded-full bg-[#1A1A1A] opacity-20" />
-                        <span className="relative inline-flex rounded-full size-3 bg-[#F9F9F8] border-2 border-[#1A1A1A]" />
+                        <span className="animate-ping absolute inline-flex size-full rounded-full bg-foreground opacity-20" />
+                        <span className="relative inline-flex rounded-full size-3 bg-background border-2 border-foreground" />
                       </span>
                     ) : (
-                      <span className="size-2 rounded-full bg-[#1A1A1A]" />
+                      <span className="size-2 rounded-full bg-foreground" />
                     )}
                     <Badge
                       variant={dayEvent.status === "active" ? "default" : "secondary"}
@@ -247,7 +247,7 @@ export function EventsCalendarPage() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 mt-4 text-[#1A1A1A]/40 text-xs font-medium uppercase tracking-wider">
+                <div className="w-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 mt-4 text-muted-foreground text-xs font-medium uppercase tracking-wider">
                   <Plus className="size-3" /> Buka Sesi
                 </div>
               )}
@@ -257,12 +257,12 @@ export function EventsCalendarPage() {
       </div>
 
       <AlertDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
-        <AlertDialogContent className="bg-[#F9F9F8] border-[#1A1A1A]/10">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[#1A1A1A]">Sesi Masih Aktif</AlertDialogTitle>
-            <AlertDialogDescription className="text-[#1A1A1A]/60">
+            <AlertDialogTitle>Sesi Masih Aktif</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               Ada sesi aktif pada{' '}
-              <span className="font-medium text-[#1A1A1A]">
+              <span className="font-medium text-foreground">
                 {activeEvent?.event_date
                   ? new Date(activeEvent.event_date).toLocaleDateString('id-ID', {
                       weekday: 'long',
@@ -276,12 +276,11 @@ export function EventsCalendarPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-[#1A1A1A]/20 text-[#1A1A1A] hover:bg-[#1A1A1A]/5">
+            <AlertDialogCancel>
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleNavigateToActiveSession}
-              className="bg-[#1A1A1A] text-[#F9F9F8] hover:bg-[#1A1A1A]/90"
             >
               Pergi ke Sesi Aktif
             </AlertDialogAction>

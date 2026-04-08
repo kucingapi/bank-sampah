@@ -28,7 +28,7 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to create member');
+      setError(err.message || 'Gagal membuat anggota');
     }
   };
 

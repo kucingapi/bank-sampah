@@ -33,7 +33,7 @@ import {
 function VendorsPageSkeleton() {
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="border-b border-[#1A1A1A]/10 pb-8 pt-2">
+      <header className="border-b border-border pb-8 pt-2">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-64 mt-4" />
       </header>
@@ -145,11 +145,11 @@ export function VendorsPage() {
 
   return (
     <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
-      <header className="border-b border-[#1A1A1A]/10 pb-8 pt-2">
-        <h1 className="text-3xl font-semibold text-[#1A1A1A]">
-          Data <span className="text-[#1A1A1A]/40">Vendor</span>
+      <header className="border-b border-border pb-8 pt-2">
+        <h1 className="text-3xl font-semibold text-foreground">
+          Data <span className="text-muted-foreground/60">Vendor</span>
         </h1>
-        <p className="mt-2 text-[#1A1A1A]/50 text-sm">
+        <p className="mt-2 text-muted-foreground text-sm">
           Pengaturan master vendor untuk alokasi material pada laporan manifest.
         </p>
       </header>
@@ -161,7 +161,7 @@ export function VendorsPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div>
-              <label className="micro-label text-[#1A1A1A]/50 mb-2 block">
+              <label className="micro-label text-muted-foreground mb-2 block">
                 Nama Vendor
               </label>
               <Input
@@ -179,7 +179,7 @@ export function VendorsPage() {
               <Plus /> Tambahkan
             </Button>
 
-            <p className="text-[#1A1A1A]/40 text-xs leading-relaxed">
+            <p className="text-muted-foreground/60 text-xs leading-relaxed">
               Vendor "BSM" dan "Lainnya" akan dibuat secara otomatis jika belum ada.
             </p>
           </CardContent>
@@ -191,7 +191,7 @@ export function VendorsPage() {
               <h2 className="section-header">Daftar Vendor</h2>
               <ExportCSVButton onExport={handleExport} filename="vendors" />
             </div>
-            <span className="text-sm font-medium text-[#1A1A1A]/50">
+            <span className="text-sm font-medium text-muted-foreground">
               {vendors.length} entri
             </span>
           </div>

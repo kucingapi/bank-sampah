@@ -36,7 +36,7 @@ export interface DateRangePickerProps {
   showCompare?: boolean
 }
 
-const formatDate = (date: Date, locale: string = 'en-us'): string => {
+const formatDate = (date: Date, locale: string = 'id-id'): string => {
   return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
@@ -70,15 +70,15 @@ interface Preset {
 
 // Define presets
 const PRESETS: Preset[] = [
-  { name: 'today', label: 'Today' },
-  { name: 'yesterday', label: 'Yesterday' },
-  { name: 'last7', label: 'Last 7 days' },
-  { name: 'last14', label: 'Last 14 days' },
-  { name: 'last30', label: 'Last 30 days' },
-  { name: 'thisWeek', label: 'This Week' },
-  { name: 'lastWeek', label: 'Last Week' },
-  { name: 'thisMonth', label: 'This Month' },
-  { name: 'lastMonth', label: 'Last Month' }
+  { name: 'today', label: 'Hari Ini' },
+  { name: 'yesterday', label: 'Kemarin' },
+  { name: 'last7', label: '7 Hari Terakhir' },
+  { name: 'last14', label: '14 Hari Terakhir' },
+  { name: 'last30', label: '30 Hari Terakhir' },
+  { name: 'thisWeek', label: 'Minggu Ini' },
+  { name: 'lastWeek', label: 'Minggu Lalu' },
+  { name: 'thisMonth', label: 'Bulan Ini' },
+  { name: 'lastMonth', label: 'Bulan Lalu' }
 ]
 
 /** The DateRangePicker component allows a user to select a range of dates */
@@ -91,7 +91,7 @@ export const DateRangePicker: FC<DateRangePickerProps> & {
   initialCompareTo,
   onUpdate,
   align = 'end',
-  locale = 'en-US',
+  locale = 'id-ID',
   showCompare = true
 }): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false)
@@ -401,7 +401,7 @@ export const DateRangePicker: FC<DateRangePickerProps> & {
                       }}
                       id="compare-mode"
                     />
-                    <Label htmlFor="compare-mode">Compare</Label>
+                    <Label htmlFor="compare-mode">Bandingkan</Label>
                   </div>
                 )}
                 <div className="flex flex-col gap-2">
@@ -478,7 +478,7 @@ export const DateRangePicker: FC<DateRangePickerProps> & {
               { isSmallScreen && (
                 <Select defaultValue={selectedPreset} onValueChange={(value) => { setPreset(value) }}>
                   <SelectTrigger className="w-[180px] mx-auto mb-2">
-                    <SelectValue placeholder="Select..." />
+                    <SelectValue placeholder="Pilih..." />
                   </SelectTrigger>
                   <SelectContent>
                     {PRESETS.map((preset) => (
@@ -533,7 +533,7 @@ export const DateRangePicker: FC<DateRangePickerProps> & {
             }}
             variant="ghost"
           >
-            Cancel
+            Batal
           </Button>
           <Button
             onClick={() => {
@@ -546,7 +546,7 @@ export const DateRangePicker: FC<DateRangePickerProps> & {
               }
             }}
           >
-            Update
+            Terapkan
           </Button>
         </div>
       </PopoverContent>

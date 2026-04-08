@@ -9,6 +9,7 @@ import {
   getEventRates,
   updateEventRate,
   getEventCategoryTotals,
+  deleteEvent,
 } from './queries';
 import type { Event } from '../model/types';
 
@@ -69,6 +70,16 @@ export function useUpdateEventStatus() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(id) });
+    },
+  });
+}
+
+export function useDeleteEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteEvent(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
     },
   });
 }

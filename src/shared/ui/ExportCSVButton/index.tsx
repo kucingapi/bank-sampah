@@ -21,7 +21,7 @@ export function ExportCSVButton({
       data-icon="inline-start"
     >
       <Download />
-      Export {filename}
+      Ekspor {filename}
     </Button>
   );
 }
