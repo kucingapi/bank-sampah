@@ -31,6 +31,7 @@ export interface EventRate {
   event_id: string;
   category_id: string;
   active_rate: number;
+  outbound_rate: number;
 }
 
 export interface Deposit {

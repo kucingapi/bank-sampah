@@ -1,10 +1,8 @@
 import { useState, useMemo } from "react"
-import { Search, Plus, TrendingUp, Calendar as CalendarIcon, Download } from "lucide-react"
-import type { ColumnDef } from "@tanstack/react-table"
-import { useMembers, useExportDetailedMemberList } from "@/entities/member/api/hooks"
+import { Search, Plus, TrendingUp, Download } from "lucide-react"
+import { useMembers, useExportDetailedMemberList, useUpdateMember } from "@/entities/member/api/hooks"
 import type { Member } from "@/entities/member/model/types"
 import { formatCurrency } from "@/shared/lib/format"
-import { DataTable } from "@/shared/ui/DataTable"
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
@@ -12,26 +10,27 @@ import { Separator } from "@/shared/ui/ui/separator"
 import { DateRangePicker } from "@/shared/ui/ui/date-picker-range"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
 import { AddMemberModal } from "@/features/add-member/ui/AddMemberModal"
-
-type MemberWithEarnings = Member & { totalEarnings: number }
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/shared/ui/ui/table"
 
 function TableSkeleton() {
   return (
     <div className="border border-input rounded-lg overflow-hidden">
       <div className="p-4 bg-muted/30 border-b">
-        <div className="grid grid-cols-4 gap-4">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-24" />
+        <div className="grid grid-cols-5 gap-4">
+          <Skeleton className="h-4 w-10" />
           <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-28" />
         </div>
       </div>
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="p-4 border-b last:border-b-0 grid grid-cols-4 gap-4">
-          <Skeleton className="h-4 w-20" />
+        <div key={i} className="p-4 border-b last:border-b-0 grid grid-cols-5 gap-4">
+          <Skeleton className="h-4 w-10" />
           <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-36" />
           <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-24" />
         </div>
       ))}
     </div>
@@ -100,48 +99,15 @@ export function MembersPage() {
     }
   }, [members])
 
-  const columns = useMemo<ColumnDef<MemberWithEarnings>[]>(() => [
-    {
-      accessorKey: "id",
-      header: "ID Nasabah",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {row.original.id}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "name",
-      header: "Nama Lengkap",
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.name}</span>
-      ),
-    },
-    {
-      accessorKey: "join_date",
-      header: "Tanggal Bergabung",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <CalendarIcon className="size-3" />
-          {new Date(row.original.join_date).toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "totalEarnings",
-      header: "Total Pendapatan (Rp)",
-      cell: ({ row }) => (
-        <span className="text-right tabular-nums font-medium block">
-          {formatCurrency(row.original.totalEarnings || 0)}
-        </span>
-      ),
-    },
-  ], [])
+  const updateMember = useUpdateMember()
 
+  const handleUpdate = async (id: number, field: keyof Pick<Member, 'name' | 'address' | 'phone'>, value: string) => {
+    try {
+      await updateMember.mutateAsync({ id, updates: { [field]: value } })
+    } catch (err) {
+      console.error("Update failed", err)
+    }
+  }
 
 
   return (
@@ -189,7 +155,7 @@ export function MembersPage() {
           disabled={exportMutation.isPending}
         >
           <Download className="size-4 mr-2" />
-          Export Detail Sesi
+          Export Detail Penyetoran
         </Button>
       </div>
 
@@ -198,14 +164,71 @@ export function MembersPage() {
           {isLoading ? (
             <TableSkeleton />
           ) : (
-            <DataTable
-              columns={columns}
-              data={members}
-              searchKey="name"
-              searchValue={searchQuery}
-              enableExport
-              exportFilename="members-list"
-            />
+            <div className="border border-input rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">ID</TableHead>
+                    <TableHead>Nama Lengkap</TableHead>
+                    <TableHead>Alamat</TableHead>
+                    <TableHead>No. Telepon</TableHead>
+                    <TableHead className="text-right">Total Pendapatan</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {members.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                        Belum ada anggota.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    members.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <span className="font-mono text-xs text-muted-foreground">{m.id}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            className="font-medium bg-transparent border-none focus-visible:ring-1 h-8"
+                            value={m.name}
+                            onChange={(e) => handleUpdate(m.id, "name", e.target.value)}
+                            onBlur={(e) => {
+                              if (e.target.value.trim()) {
+                                handleUpdate(m.id, "name", e.target.value.trim())
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            className="bg-transparent border-none focus-visible:ring-1 h-8 text-muted-foreground"
+                            value={m.address || ""}
+                            placeholder="—"
+                            onChange={(e) => handleUpdate(m.id, "address", e.target.value)}
+                            onBlur={(e) => handleUpdate(m.id, "address", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            className="bg-transparent border-none focus-visible:ring-1 h-8 tabular-nums text-muted-foreground"
+                            value={m.phone || ""}
+                            placeholder="—"
+                            onChange={(e) => handleUpdate(m.id, "phone", e.target.value)}
+                            onBlur={(e) => handleUpdate(m.id, "phone", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="tabular-nums font-medium">
+                            {formatCurrency(m.totalEarnings || 0)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </div>
 

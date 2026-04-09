@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
 import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import { useEvent, useEventCategoryTotals } from '@/entities/event/api/hooks';
+import { useEvent, useEventCategoryTotals, useEventRates } from '@/entities/event/api/hooks';
 import { useVendors, useCreateVendor } from '@/entities/vendor/api/hooks';
 import { useCreateManifestsByAssignments, useManifests } from '@/entities/manifest/api/hooks';
 import { getOrCreateDefaultVendors } from '@/entities/vendor/api/queries';
@@ -21,6 +21,7 @@ interface Props {
 interface CategoryItem extends EventCategoryTotal {
   name: string;
   unit: string;
+  outboundRate: number;
 }
 
 interface VendorGroup {
@@ -28,7 +29,8 @@ interface VendorGroup {
   vendorName: string;
   categories: CategoryItem[];
   totalWeight: number;
-  totalPayout: number;
+  totalPayout: number;      // buy total
+  totalSellPayout: number;  // sell total
 }
 
 function VendorReportPageSkeleton() {
@@ -55,6 +57,7 @@ function VendorReportPageSkeleton() {
               <TableHead><Skeleton className="h-4 w-32" /></TableHead>
               <TableHead className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableHead>
               <TableHead className="text-right"><Skeleton className="h-4 w-28 ml-auto" /></TableHead>
+              <TableHead className="text-right"><Skeleton className="h-4 w-28 ml-auto" /></TableHead>
               <TableHead><Skeleton className="h-4 w-32" /></TableHead>
             </TableRow>
           </TableHeader>
@@ -68,6 +71,7 @@ function VendorReportPageSkeleton() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                 <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                 <TableCell><Skeleton className="h-10 w-full" /></TableCell>
               </TableRow>
@@ -90,6 +94,7 @@ export function VendorReportPage({ eventId }: Props) {
 
   const { data: event, isLoading: eventLoading } = useEvent(eventId);
   const { data: categoryTotals, isLoading: totalsLoading } = useEventCategoryTotals(eventId);
+  const { data: eventRates } = useEventRates(eventId);
   const { data: existingManifests } = useManifests(eventId);
   const { data: vendorsData = [] } = useVendors();
   
@@ -118,15 +123,28 @@ export function VendorReportPage({ eventId }: Props) {
 
       const db = await getDb();
       const cats = await db.select<{ id: string, name: string, unit: string }[]>('SELECT id, name, unit FROM category');
-      
+
+      // Build outbound rate map from event_rates
+      const outboundRateMap: Record<string, number> = {};
+      if (eventRates) {
+        eventRates.forEach(er => {
+          outboundRateMap[er.category_id] = er.outbound_rate;
+        });
+      }
+
       const items: CategoryItem[] = categoryTotals.map(ct => {
         const cat = cats.find(c => c.id === ct.categoryId);
-        return { ...ct, name: cat?.name || 'Unknown', unit: cat?.unit || 'kg' };
+        return {
+          ...ct,
+          name: cat?.name || 'Unknown',
+          unit: cat?.unit || 'kg',
+          outboundRate: outboundRateMap[ct.categoryId] || 0
+        };
       });
       setCategoryItems(items);
 
       const mapping: Record<string, number> = {};
-      
+
       if (existingManifests && existingManifests.length > 0) {
         existingManifests.forEach(m => {
           m.items.forEach(item => {
@@ -142,11 +160,11 @@ export function VendorReportPage({ eventId }: Props) {
           }
         });
       }
-      
+
       setVendorMappings(mapping);
     }
     initializeMappings();
-  }, [categoryTotals, existingManifests, defaultVendorIds]);
+  }, [categoryTotals, existingManifests, defaultVendorIds, eventRates]);
 
   const handleVendorChange = (categoryId: string, vendorId: number) => {
     setVendorMappings(prev => ({
@@ -187,13 +205,15 @@ export function VendorReportPage({ eventId }: Props) {
           vendorName,
           categories: [],
           totalWeight: 0,
-          totalPayout: 0
+          totalPayout: 0,
+          totalSellPayout: 0
         };
       }
-      
+
       groups[vendorId].categories.push(item);
       groups[vendorId].totalWeight += item.totalWeight;
       groups[vendorId].totalPayout += item.totalPayout;
+      groups[vendorId].totalSellPayout += item.totalSellPayout;
     });
     
     return Object.values(groups).sort((a, b) => b.totalWeight - a.totalWeight);
@@ -203,7 +223,8 @@ export function VendorReportPage({ eventId }: Props) {
     return categoryItems.length > 0 && categoryItems.every(item => vendorMappings[item.categoryId] !== undefined);
   }, [categoryItems, vendorMappings]);
 
-  const grandTotalPayout = categoryItems.reduce((sum, item) => sum + item.totalPayout, 0);
+  const grandTotalBuyPayout = categoryItems.reduce((sum, item) => sum + item.totalPayout, 0);
+  const grandTotalSellPayout = categoryItems.reduce((sum, item) => sum + item.totalSellPayout, 0);
   
   const summaryText = useMemo(() => {
     const kgTotal = categoryItems.filter(i => i.unit === 'kg').reduce((sum, i) => sum + i.totalWeight, 0);
@@ -222,13 +243,13 @@ export function VendorReportPage({ eventId }: Props) {
 
   const handleSubmit = async () => {
     if (!isFullyAssigned || categoryItems.length === 0 || !defaultVendorIds) return;
-    
+
     try {
       const assignments = vendorGroups.map(group => ({
         vendorId: group.vendorId,
-        items: group.categories.map(c => ({ category_id: c.categoryId, outbound_rate: 0 }))
+        items: group.categories.map(c => ({ category_id: c.categoryId, outbound_rate: c.outboundRate }))
       }));
-      
+
       await createManifests.mutateAsync({
         eventId,
         assignments
@@ -249,7 +270,8 @@ export function VendorReportPage({ eventId }: Props) {
       category: t.name,
       total_weight: t.totalWeight,
       unit: t.unit,
-      total_payout: t.totalPayout,
+      total_buy_payout: t.totalPayout,
+      total_sell_payout: t.totalSellPayout,
       vendor: availableVendors.find(v => v.id === vendorMappings[t.categoryId])?.name || 'Unknown'
     }));
     exportToCSV(exportData, 'manifest-report');
@@ -337,14 +359,15 @@ export function VendorReportPage({ eventId }: Props) {
             <TableRow>
               <TableHead>Vendor</TableHead>
               <TableHead className="text-right">Total Berat</TableHead>
-              <TableHead className="text-right">Total Biaya (Nasabah)</TableHead>
+              <TableHead className="text-right">Harga Beli (Nasabah)</TableHead>
+              <TableHead className="text-right">Harga Jual (Vendor)</TableHead>
               <TableHead className="print:hidden">Alokasi Kategori</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {vendorGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
+                <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
               </TableRow>
             ) : (
               vendorGroups.map(group => (
@@ -371,6 +394,9 @@ export function VendorReportPage({ eventId }: Props) {
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(group.totalPayout)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium text-primary">
+                      {formatCurrency(group.totalSellPayout)}
+                    </TableCell>
                     <TableCell className="print:hidden"></TableCell>
                   </TableRow>
                   
@@ -387,6 +413,9 @@ export function VendorReportPage({ eventId }: Props) {
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {formatCurrency(item.totalPayout)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-primary/70">
+                        {formatCurrency(item.totalSellPayout)}
                       </TableCell>
                       <TableCell className="print:hidden">
                         <select
@@ -413,8 +442,11 @@ export function VendorReportPage({ eventId }: Props) {
                 <TableCell className="text-right tabular-nums font-medium">
                   {summaryText}
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-bold">
-                  {formatCurrency(grandTotalPayout)}
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(grandTotalBuyPayout)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums font-bold text-primary">
+                  {formatCurrency(grandTotalSellPayout)}
                 </TableCell>
                 <TableCell className="print:hidden"></TableCell>
               </TableRow>

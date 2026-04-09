@@ -1,37 +1,55 @@
 import { getDb } from '@/shared/api';
 import type { Member } from '../model/types';
 
+/** Ensure address and phone columns exist (handles old databases pre-migration v3) */
+async function ensureMemberColumns() {
+  const db = await getDb();
+  try {
+    await db.execute('ALTER TABLE member ADD COLUMN address TEXT');
+  } catch { /* already exists */ }
+  try {
+    await db.execute('ALTER TABLE member ADD COLUMN phone TEXT');
+  } catch { /* already exists */ }
+}
+
 export async function listMembers(
-  search?: string, 
-  eventDateStart?: string, 
+  search?: string,
+  eventDateStart?: string,
   eventDateEnd?: string
 ): Promise<(Member & { totalEarnings: number })[]> {
+  await ensureMemberColumns();
   const db = await getDb();
   let query = `
-    SELECT 
+    SELECT
       m.*,
-      COALESCE(SUM(d.total_payout), 0) as totalEarnings
+      COALESCE((
+        SELECT SUM(di.weight * er.active_rate)
+        FROM deposit_item di
+        JOIN deposit d2 ON di.deposit_id = d2.id
+        JOIN event_rate er ON er.event_id = d2.event_id AND er.category_id = di.category_id
+        WHERE d2.member_id = m.id
+      ), 0) as totalEarnings
     FROM member m
     LEFT JOIN deposit d ON m.id = d.member_id
     LEFT JOIN event e ON d.event_id = e.id
     WHERE 1=1
   `;
   const args: any[] = [];
-  
+
   if (eventDateStart && eventDateEnd) {
     const idx1 = args.length + 1;
     const idx2 = args.length + 2;
     query += ` AND e.event_date BETWEEN $${idx1} AND $${idx2}`;
     args.push(eventDateStart, eventDateEnd);
   }
-  
+
   if (search) {
     query += ' AND m.name LIKE $' + (args.length + 1);
     args.push(`%${search}%`);
   }
-  
+
   if (eventDateStart && eventDateEnd) {
-    query += ' GROUP BY m.id HAVING SUM(d.total_payout) > 0 ORDER BY m.join_date DESC';
+    query += ' GROUP BY m.id HAVING totalEarnings > 0 ORDER BY m.join_date DESC';
   } else {
     query += ' GROUP BY m.id ORDER BY m.join_date DESC';
   }
@@ -95,22 +113,54 @@ export async function exportDetailedMemberList(eventDateStart?: string, eventDat
   return csvRows.join('\n');
 }
 
-export async function createMember(name: string): Promise<Member> {
+export async function createMember(name: string, address?: string, phone?: string): Promise<Member> {
+  await ensureMemberColumns();
   const db = await getDb();
   const joinDate = new Date().toISOString();
-  
-  const result = await db.execute('INSERT INTO member (name, join_date) VALUES (?, ?)', [name, joinDate]);
-  
+
+  const result = await db.execute(
+    'INSERT INTO member (name, address, phone, join_date) VALUES (?, ?, ?, ?)',
+    [name, address || null, phone || null, joinDate]
+  );
+
   const lastId = result.lastInsertId;
   if (lastId === undefined) {
     throw new Error('Failed to create member');
   }
-  
-  return { id: lastId, name, join_date: joinDate };
+
+  return { id: lastId, name, address, phone, join_date: joinDate };
+}
+
+export async function updateMember(id: number, updates: Partial<{ name: string; address: string; phone: string }>): Promise<void> {
+  await ensureMemberColumns();
+  const db = await getDb();
+  const setClauses: string[] = [];
+  const args: any[] = [];
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (key !== 'id') {
+      const idx = args.length + 1;
+      setClauses.push(`${key} = $${idx}`);
+      args.push(value);
+    }
+  });
+
+  if (setClauses.length === 0) return;
+
+  args.push(id);
+  const idIdx = args.length;
+  await db.execute(`UPDATE member SET ${setClauses.join(', ')} WHERE id = $${idIdx}`, args);
 }
 
 export async function getMemberEarnings(memberId: number): Promise<number> {
   const db = await getDb();
-  const result = await db.select<{ total: number }[]>('SELECT SUM(total_payout) as total FROM deposit WHERE member_id = ?', [memberId]);
+  const result = await db.select<{ total: number }[]>(
+    `SELECT COALESCE(SUM(di.weight * er.active_rate), 0) as total 
+     FROM deposit_item di
+     JOIN deposit d ON di.deposit_id = d.id
+     JOIN event_rate er ON er.event_id = d.event_id AND er.category_id = di.category_id
+     WHERE d.member_id = $1`,
+    [memberId]
+  );
   return result[0]?.total || 0;
 }

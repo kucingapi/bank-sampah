@@ -245,7 +245,7 @@ export function CategoriesPage() {
 
             <div>
               <label className="micro-label text-muted-foreground mb-2 block">
-                Harga Dasar (Rp)
+                Harga Dasar Jual ke Vendor (Rp)
               </label>
               <Input
                 type="number"
@@ -284,7 +284,7 @@ export function CategoriesPage() {
                 <TableRow>
                   <TableHead>Material</TableHead>
                   <TableHead>Satuan</TableHead>
-                  <TableHead>Harga Dasar (Rp)</TableHead>
+                  <TableHead>Harga Dasar Jual ke Vendor (Rp)</TableHead>
                   <TableHead className="text-center w-12"></TableHead>
                 </TableRow>
               </TableHeader>

@@ -1,24 +1,58 @@
 import { getDb } from '@/shared/api';
 import type { Deposit } from '../model/types';
 
-export async function listDeposits(eventId?: string): Promise<(Deposit & { memberName: string; itemCount?: number })[]> {
+export async function listDeposits(eventId?: string): Promise<(Deposit & {
+  memberName: string;
+  itemCount?: number;
+  items: { category_id: string; category_name: string; weight: number; payout: number; unit: string }[]
+})[]> {
   const db = await getDb();
   let query = `
-    SELECT d.*, m.name as memberName,
-    (SELECT COUNT(*) FROM deposit_item WHERE deposit_id = d.id) as itemCount
-    FROM deposit d 
+    SELECT d.id, d.event_id, d.member_id, d.time, d.total_payout,
+           m.name as memberName,
+           (SELECT COUNT(*) FROM deposit_item WHERE deposit_id = d.id) as itemCount,
+           COALESCE(SUM(di.weight * er.active_rate), 0) as total_payout_calculated,
+           (SELECT json_group_array(
+             json_object(
+               'category_id', di2.category_id,
+               'category_name', c.name,
+               'weight', di2.weight,
+               'payout', di2.weight * er2.active_rate,
+               'unit', c.unit
+             )
+           )
+           FROM deposit_item di2
+           JOIN event_rate er2 ON er2.event_id = d.event_id AND er2.category_id = di2.category_id
+           JOIN category c ON c.id = di2.category_id
+           WHERE di2.deposit_id = d.id
+           ) as items_json
+    FROM deposit d
     JOIN member m ON d.member_id = m.id
+    LEFT JOIN deposit_item di ON di.deposit_id = d.id
+    LEFT JOIN event_rate er ON er.event_id = d.event_id AND er.category_id = di.category_id
   `;
   const args: any[] = [];
-  
+
   if (eventId) {
     query += ' WHERE d.event_id = $1';
     args.push(eventId);
   }
-  
-  query += ' ORDER BY d.time DESC';
-  
-  return db.select<(Deposit & { memberName: string; itemCount?: number })[]>(query, args);
+
+  query += ' GROUP BY d.id ORDER BY d.time DESC';
+
+  const results = await db.select<(Deposit & {
+    memberName: string;
+    itemCount?: number;
+    total_payout_calculated: number;
+    items_json: string | null;
+  })[]>(query, args);
+
+  // Override total_payout with the calculated value and parse items JSON
+  return results.map(({ total_payout_calculated, items_json, ...rest }) => ({
+    ...rest,
+    total_payout: total_payout_calculated,
+    items: items_json ? JSON.parse(items_json) : [],
+  }));
 }
 
 export async function getDepositWithItems(depositId: string): Promise<Deposit & { memberName: string; items: { category_id: string; weight: number }[] }> {

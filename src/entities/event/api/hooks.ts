@@ -101,13 +101,15 @@ export function useUpdateEventRate() {
       eventId,
       categoryId,
       activeRate,
+      outboundRate,
       isActive,
     }: {
       eventId: string;
       categoryId: string;
       activeRate: number;
+      outboundRate: number;
       isActive: number;
-    }) => updateEventRate(eventId, categoryId, activeRate, isActive),
+    }) => updateEventRate(eventId, categoryId, activeRate, outboundRate, isActive),
     onSuccess: (_, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.events.rates(eventId) });
     },
