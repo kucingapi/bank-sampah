@@ -6,6 +6,7 @@ interface ExpressionInputProps {
   value: string | number
   onChange: (value: string) => void
   onNext?: () => void
+  onArrowKey?: (direction: 'up' | 'down' | 'left' | 'right') => void
   placeholder?: string
   className?: string
   disabled?: boolean
@@ -75,6 +76,7 @@ export function ExpressionInput({
   value,
   onChange,
   onNext,
+  onArrowKey,
   placeholder,
   className,
   disabled,
@@ -125,6 +127,10 @@ export function ExpressionInput({
       if (onNext) {
         setTimeout(() => onNext(), 0)
       }
+    } else if (onArrowKey && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault()
+      const direction = e.key.replace("Arrow", "").toLowerCase() as 'up' | 'down' | 'left' | 'right'
+      onArrowKey(direction)
     }
   }
 

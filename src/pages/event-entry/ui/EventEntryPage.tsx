@@ -49,7 +49,7 @@ export function EventEntryPage({ eventId, depositId }: Props) {
   }
 
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-10 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-10 animate-in fade-in duration-500 ease-editorial">
       {/* ── Header ── */}
       <header className="flex items-center gap-5 border-b border-border pb-5">
         <Button variant="ghost" size="icon" onClick={handleBack} data-icon="inline-start">

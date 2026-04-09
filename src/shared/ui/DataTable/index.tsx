@@ -10,9 +10,10 @@ import {
   type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/shared/ui/ui/table";
 import { Button } from "@/shared/ui/ui/button";
+import { Input } from "@/shared/ui/ui/input";
 import { ExportCSVButton } from "@/shared/ui/ExportCSVButton";
 import { exportToCSV } from "@/shared/lib/csv";
 
@@ -20,7 +21,6 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   searchKey?: string;
-  searchValue?: string;
   enableExport?: boolean;
   exportFilename?: string;
 }
@@ -29,12 +29,12 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   searchKey,
-  searchValue = "",
   enableExport = false,
   exportFilename = "export",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [searchValue, setSearchValue] = useState("");
 
   const exportData = useMemo(() => {
     return data.map((row) => {
@@ -83,10 +83,7 @@ export function DataTable<TData, TValue>({
   useEffect(() => {
     if (searchKey) {
       const column = table.getColumn(searchKey);
-      const currentValue = column?.getFilterValue();
-      if (currentValue !== searchValue) {
-        column?.setFilterValue(searchValue);
-      }
+      column?.setFilterValue(searchValue);
     }
   }, [searchKey, searchValue, table]);
 
@@ -94,9 +91,23 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="flex flex-col gap-4">
-      {enableExport && (
-        <div className="flex justify-end">
-          <ExportCSVButton onExport={handleExport} filename={exportFilename} />
+      {(enableExport || searchKey) && (
+        <div className="flex items-center justify-between gap-4">
+          {searchKey && (
+            <div className="relative max-w-xs flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Filter..."
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          )}
+          <div className="flex-1" />
+          {enableExport && (
+            <ExportCSVButton onExport={handleExport} filename={exportFilename} />
+          )}
         </div>
       )}
       <div className="rounded-lg border border-input overflow-hidden">

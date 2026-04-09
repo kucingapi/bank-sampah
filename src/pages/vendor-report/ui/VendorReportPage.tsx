@@ -35,7 +35,7 @@ interface VendorGroup {
 
 function VendorReportPageSkeleton() {
   return (
-    <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex items-center gap-6">
           <Skeleton className="size-10 rounded-full" />
@@ -294,7 +294,7 @@ export function VendorReportPage({ eventId }: Props) {
   }
 
   return (
-    <div className="p-12 max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto space-y-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6 print:border-none">
         <div className="flex items-center gap-6">
           <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground print:hidden">

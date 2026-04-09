@@ -19,7 +19,7 @@ import {
 
 function EventsCalendarPageSkeleton() {
   return (
-    <div className="p-12 max-w-5xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-8 w-48" />
@@ -136,7 +136,7 @@ export function EventsCalendarPage() {
   }
 
   return (
-    <div className="p-12 max-w-5xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">

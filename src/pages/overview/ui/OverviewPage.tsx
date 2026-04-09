@@ -10,7 +10,7 @@ import { StatsCardSkeleton } from "@/shared/ui/skeletons"
 
 function OverviewPageSkeleton() {
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-8 w-48" />
@@ -62,7 +62,7 @@ export function OverviewPage() {
   const safeStats = stats || { totalWeight: 0, totalPayout: 0, activeMembers: 0 }
 
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12">
+    <div className="p-12 mx-auto flex flex-col gap-12">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">

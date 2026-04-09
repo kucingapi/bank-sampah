@@ -50,7 +50,7 @@ interface DepositWithDetails extends Deposit {
 
 function EventDetailsPageSkeleton() {
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex items-center gap-6">
           <Skeleton className="size-10 rounded-md" />
@@ -412,7 +412,7 @@ export function EventDetailsPage({ eventId }: Props) {
 
 
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="flex items-end justify-between border-b border-border pb-6">
         <div className="flex items-center gap-6">
           <Button variant="ghost" size="icon" onClick={handleBack}>
@@ -667,7 +667,13 @@ export function EventDetailsPage({ eventId }: Props) {
             </p>
           </div>
         ) : (
-          <DataTable columns={columns} data={depositsWithDetails} enableExport exportFilename="event-deposits" />
+          <DataTable
+            columns={columns}
+            data={depositsWithDetails}
+            enableExport
+            exportFilename="event-deposits"
+            searchKey="memberName"
+          />
         )}
       </div>
 

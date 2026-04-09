@@ -43,7 +43,7 @@ export function EditDepositModal({ isOpen, onClose, eventId, depositId }: EditDe
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle>Edit Setoran</DialogTitle>
         </DialogHeader>

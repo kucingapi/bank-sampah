@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useImperativeHandle, forwardRef, useCallback } from "react"
-import { Scale, Receipt, User, UserPlus, Search, Check, Keyboard } from "lucide-react"
+import { Scale, Receipt, User, UserPlus, Search, Check, Keyboard, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from "lucide-react"
 import { useEventRates } from "@/entities/event/api/hooks"
 import { useMembers, useCreateMember } from "@/entities/member/api/hooks"
 import { useDeposit, useCreateDeposit, useUpdateDeposit } from "@/entities/deposit/api/hooks"
@@ -53,6 +53,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
   const [rates, setRates] = useState<RateWithDetails[]>([])
   const [popoverOpen, setPopoverOpen] = useState(false)
   const categoryInputRefs = useRef<Record<string, HTMLInputElement | null >>({})
+  const currentIndexRef = useRef(0)
   const isEditMode = !!depositId
 
   const { data: membersData = [] } = useMembers()
@@ -135,6 +136,37 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
   const handleWeightChange = (catId: string, value: string) => {
     const num = parseFloat(value)
     setWeights((prev) => ({ ...prev, [catId]: isNaN(num) ? 0 : num }))
+  }
+
+  const handleArrowNavigation = (currentIndex: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    const cols = 2 // 2-column grid
+    const total = rates.length
+    let newIndex = currentIndex
+
+    switch (direction) {
+      case 'right':
+        newIndex = currentIndex + 1
+        break
+      case 'left':
+        newIndex = currentIndex - 1
+        break
+      case 'down':
+        newIndex = currentIndex + cols
+        break
+      case 'up':
+        newIndex = currentIndex - cols
+        break
+    }
+
+    // Wrap around or clamp to valid range
+    if (newIndex < 0) newIndex = total - 1
+    if (newIndex >= total) newIndex = 0
+
+    currentIndexRef.current = newIndex
+    const nextCategoryId = rates[newIndex]?.category_id
+    if (nextCategoryId) {
+      categoryInputRefs.current[nextCategoryId]?.focus()
+    }
   }
 
   const handleSubmit = useCallback(async () => {
@@ -278,7 +310,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
             </h2>
             <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground/60 gap-1 px-2 py-0.5 rounded-md">
               <Keyboard className="size-3" />
-              Ctrl+Shift+F untuk mencari kategori
+              Gunakan arrow keys untuk navigasi
             </Badge>
           </div>
 
@@ -320,6 +352,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
                             filled && "ring-2 ring-primary/20 border-primary/30"
                           )}
                           disabled={!selectedMember}
+                          onArrowKey={(direction) => handleArrowNavigation(idx, direction)}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 text-xs font-semibold uppercase tracking-wider pointer-events-none">
                           {rate.unit}
@@ -335,7 +368,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
       </div>
 
       {/* ── Right: Receipt ── */}
-      <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm h-full">
+      <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm h-[95%] ">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <Receipt className="size-4 text-muted-foreground/50" />
@@ -343,9 +376,9 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
           </CardTitle>
           <CardDescription className="text-xs">Ringkasan pembayaran real-time.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col flex-1 min-h-0">
+        <CardContent className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {activeWeights.length > 0 ? (
-            <div className="overflow-y-auto pr-2" style={{ maxHeight: "calc(90vh - 20rem)", scrollbarGutter: "stable" }}>
+            <div className="overflow-y-auto pr-2 flex-1 min-h-0" style={{ scrollbarGutter: "stable" }}>
               <div className="flex flex-col gap-1 pb-2">
                 {activeWeights.map((r) => (
                   <div
@@ -376,40 +409,42 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
             </div>
           )}
 
-          <Separator className="my-5" />
+          <div className="mt-auto pt-5">
+            <Separator className="mb-5" />
 
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-1">
-                Total Pembayaran
-              </p>
-              <p
-                className={cn(
-                  "text-3xl font-semibold tracking-tight tabular-nums transition-all duration-300",
-                  currentTotal > 0 ? "text-foreground scale-100" : "text-muted-foreground/20 scale-[0.98]"
-                )}
-              >
-                {formatCurrency(currentTotal)}
-              </p>
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-1">
+                  Total Pembayaran
+                </p>
+                <p
+                  className={cn(
+                    "text-3xl font-semibold tracking-tight tabular-nums transition-all duration-300",
+                    currentTotal > 0 ? "text-foreground scale-100" : "text-muted-foreground/20 scale-[0.98]"
+                  )}
+                >
+                  {formatCurrency(currentTotal)}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedMember || currentTotal <= 0 || createDeposit.isPending || updateDeposit.isPending}
-            size="lg"
-            className="w-full h-12 rounded-xl font-semibold text-base"
-            data-icon="inline-start"
-          >
-            {createDeposit.isPending || updateDeposit.isPending ? (
-              "Menyimpan…"
-            ) : (
-              <>
-                <Check />
-                {isEditMode ? "Perbarui Setoran" : "Catat Setoran"}
-              </>
-            )}
-          </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!selectedMember || currentTotal <= 0 || createDeposit.isPending || updateDeposit.isPending}
+              size="lg"
+              className="w-full h-12 rounded-xl font-semibold text-base"
+              data-icon="inline-start"
+            >
+              {createDeposit.isPending || updateDeposit.isPending ? (
+                "Menyimpan…"
+              ) : (
+                <>
+                  <Check />
+                  {isEditMode ? "Perbarui Setoran" : "Catat Setoran"}
+                </>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

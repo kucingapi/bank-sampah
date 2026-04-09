@@ -32,7 +32,7 @@ import {
 
 function VendorsPageSkeleton() {
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="border-b border-border pb-8 pt-2">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-64 mt-4" />
@@ -144,7 +144,7 @@ export function VendorsPage() {
   }
 
   return (
-    <div className="p-12 max-w-6xl mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
+    <div className="p-12 mx-auto flex flex-col gap-12 animate-in fade-in duration-500 ease-editorial">
       <header className="border-b border-border pb-8 pt-2">
         <h1 className="text-3xl font-semibold text-foreground">
           Data <span className="text-muted-foreground/60">Vendor</span>
