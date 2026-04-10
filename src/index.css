@@ -102,5 +102,30 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-variant-numeric: tabular-nums;
   }
+}
 
+/* ── Sticky table columns (left only: No, Nama) ──────────────────── */
+@layer utilities {
+  .pivot-table {
+    --pivot-no: 3rem;
+    --pivot-nama: 12rem;
+  }
+
+  .pivot-table .sticky-no {
+    position: sticky;
+    left: 0;
+    width: var(--pivot-no);
+    min-width: var(--pivot-no);
+    max-width: var(--pivot-no);
+    z-index: 20;
+  }
+
+  .pivot-table .sticky-nama {
+    position: sticky;
+    left: var(--pivot-no);
+    width: var(--pivot-nama);
+    min-width: var(--pivot-nama);
+    max-width: var(--pivot-nama);
+    z-index: 10;
+  }
 }

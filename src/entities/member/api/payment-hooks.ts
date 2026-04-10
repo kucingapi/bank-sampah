@@ -1,7 +1,15 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/api/query-keys';
-import { getMemberPaymentPivot, getMemberPaymentDetails, getEventsInRange, exportMemberPaymentPivot } from './payment-queries';
-import type { MemberPaymentPivot, MemberPaymentDetail } from './payment-queries';
+import type { SemesterLabel } from '@/shared/lib/semester';
+import {
+  getMemberPaymentPivot,
+  getMemberPaymentDetails,
+  getEventsInRange,
+  exportMemberPaymentPivot,
+  getMemberSemesterPivot,
+  getSemesterSummary,
+} from './payment-queries';
+import type { MemberPaymentPivot, MemberPaymentDetail, MemberSemesterPayment } from './payment-queries';
 
 export function useMemberPaymentPivot(filters?: { eventDateStart?: string; eventDateEnd?: string }) {
   return useQuery<MemberPaymentPivot[]>({
@@ -35,5 +43,42 @@ export function useExportMemberPaymentPivot() {
       events: { id: string; event_date: string }[];
       pivotData: MemberPaymentPivot[];
     }) => exportMemberPaymentPivot(events, pivotData),
+  });
+}
+
+// ── Semester-based hooks ──────────────────────────────────────────────────
+
+export function useMemberSemesterPivot(semesterLabel: SemesterLabel) {
+  return useQuery<MemberSemesterPayment[]>({
+    queryKey: [...queryKeys.members.all, 'semesterPivot', semesterLabel],
+    queryFn: () => getMemberSemesterPivot(semesterLabel),
+    enabled: !!semesterLabel,
+  });
+}
+
+export function useSemesterSummary(semesterLabel: SemesterLabel) {
+  return useQuery({
+    queryKey: [...queryKeys.members.all, 'semesterSummary', semesterLabel],
+    queryFn: () => getSemesterSummary(semesterLabel),
+    enabled: !!semesterLabel,
+  });
+}
+
+export function useSemesterEvents(semesterLabel: SemesterLabel) {
+  return useQuery<{ id: string; event_date: string }[]>({
+    queryKey: ['events', 'semester', semesterLabel],
+    queryFn: async () => {
+      if (!semesterLabel) return [];
+      const { startDate, endDate } = (() => {
+        const [yearStr, sem] = semesterLabel.split('-');
+        const year = parseInt(yearStr, 10);
+        if (sem === 'S1') {
+          return { startDate: `${year}-01-01`, endDate: `${year}-06-30` };
+        }
+        return { startDate: `${year}-07-01`, endDate: `${year}-12-31` };
+      })();
+      return getEventsInRange(startDate, endDate);
+    },
+    enabled: !!semesterLabel,
   });
 }

@@ -5,7 +5,7 @@ pub fn run() {
     let migrations = vec![
         Migration {
             version: 1,
-            description: "create initial tables",
+            description: "create all tables",
             sql: "
             CREATE TABLE IF NOT EXISTS member (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,23 +81,20 @@ pub fn run() {
               FOREIGN KEY (category_id) REFERENCES category(id)
             );
 
+            CREATE TABLE IF NOT EXISTS semester_savings (
+              id TEXT PRIMARY KEY,
+              member_id INTEGER NOT NULL REFERENCES member(id),
+              semester_label TEXT NOT NULL,
+              saved_amount REAL NOT NULL DEFAULT 0,
+              is_saved INTEGER NOT NULL DEFAULT 0,
+              rolled_from TEXT
+            );
+
             INSERT OR IGNORE INTO vendor (name) VALUES ('BSM');
             INSERT OR IGNORE INTO vendor (name) VALUES ('Lainnya');
 
             INSERT OR IGNORE INTO category (id, name, unit, default_rate, status) VALUES ('c4', 'C4', 'kg', 0, 'active');
           ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 2,
-            description: "add outbound_rate column to event_rate",
-            sql: "ALTER TABLE event_rate ADD COLUMN outbound_rate REAL NOT NULL DEFAULT 0;",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 3,
-            description: "add address and phone columns to member",
-            sql: "ALTER TABLE member ADD COLUMN address TEXT; ALTER TABLE member ADD COLUMN phone TEXT;",
             kind: MigrationKind::Up,
         },
     ];

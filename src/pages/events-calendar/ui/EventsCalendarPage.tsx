@@ -54,7 +54,7 @@ function EventsCalendarPageSkeleton() {
 }
 
 export function EventsCalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
+  const [currentDate, setCurrentDate] = useState(new Date())
   const [loadingDay, setLoadingDay] = useState<string | null>(null)
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
   const { data: events = [], isLoading } = useEvents()

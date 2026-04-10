@@ -106,11 +106,13 @@ export async function seedBankSampah() {
   }
   console.log(`✅ ${memberIds.length} members seeded`)
 
-  // ── 3. Create 1 event on 9 April 2026 ──
-  const eventId = 'evt-2026-04-09'
+  // ── 3. Create 1 event on today's date ──
+  const today = new Date()
+  const dateStr = today.toISOString().split('T')[0]
+  const eventId = `evt-${dateStr}`
   await db.execute(
     'INSERT OR REPLACE INTO event (id, event_date, status) VALUES (?, ?, ?)',
-    [eventId, '2026-04-09', 'active']
+    [eventId, dateStr, 'active']
   )
   console.log(`✅ Event created: ${eventId}`)
 
@@ -139,7 +141,7 @@ export async function seedBankSampah() {
     const depositId = `dep-${eventId}-${memberId}`
 
     // Create deposit
-    const time = `2026-04-09T${String(7 + Math.floor(rand() * 8)).padStart(2, '0')}:${String(Math.floor(rand() * 60)).padStart(2, '0')}:00`
+    const time = `${dateStr}T${String(7 + Math.floor(rand() * 8)).padStart(2, '0')}:${String(Math.floor(rand() * 60)).padStart(2, '0')}:00`
     await db.execute(
       'INSERT OR REPLACE INTO deposit (id, event_id, member_id, time, total_payout) VALUES (?, ?, ?, ?, ?)',
       [depositId, eventId, memberId, time, 0] // temporary 0, will update after items
@@ -176,6 +178,6 @@ export async function seedBankSampah() {
   console.log('\n🎉 Seed complete! Summary:')
   console.log(`   Categories : ${CATEGORIES.length}`)
   console.log(`   Members    : ${memberIds.length}`)
-  console.log(`   Event      : 1 (2026-04-09)`)
+  console.log(`   Event      : 1 (${dateStr})`)
   console.log(`   Deposits   : ${depositCount}`)
 }

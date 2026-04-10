@@ -1,10 +1,12 @@
 import { getDb } from '@/shared/api';
+import { getPreviousSemester, type SemesterLabel } from '@/shared/lib/semester';
 
 export interface MemberPaymentPivot {
   memberId: number;
   memberName: string;
   eventPayouts: Record<string, number>;
   totalPayout: number;
+  rolloverSavings: number; // savings rolled over from previous semester
 }
 
 export interface MemberPaymentDetail {
@@ -192,4 +194,167 @@ export async function exportMemberPaymentPivot(
   });
 
   return csvRows.join('\n');
+}
+
+// ── Semester-based queries ────────────────────────────────────────────────
+
+export interface MemberSemesterPayment {
+  memberId: number;
+  memberName: string;
+  eventPayouts: Record<string, number>;
+  semesterPayout: number; // total for this semester only
+  rolloverSavings: number; // savings from previous semester that was marked as saved
+  isSaved: boolean; // whether this semester is marked as saved
+}
+
+/**
+ * Get member payment data for a specific semester, including rollover savings.
+ */
+export async function getMemberSemesterPivot(
+  semesterLabel: SemesterLabel
+): Promise<MemberSemesterPayment[]> {
+  const db = await getDb();
+
+  // Parse semester label
+  const [yearStr, sem] = semesterLabel.split('-');
+  const year = parseInt(yearStr, 10);
+  let startDate: string;
+  let endDate: string;
+  if (sem === 'S1') {
+    startDate = `${year}-01-01`;
+    endDate = `${year}-06-30`;
+  } else {
+    startDate = `${year}-07-01`;
+    endDate = `${year}-12-31`;
+  }
+
+  // Get events in this semester
+  const events = await db.select<{ id: string; event_date: string }[]>(
+    'SELECT id, event_date FROM event WHERE event_date BETWEEN $1 AND $2 ORDER BY event_date ASC',
+    [startDate, endDate]
+  );
+
+  // Get member payouts per event for this semester
+  const payouts = await db.select<{
+    memberId: number;
+    memberName: string;
+    eventId: string;
+    totalPayout: number;
+  }[]>(
+    `SELECT
+      m.id as memberId,
+      m.name as memberName,
+      e.id as eventId,
+      COALESCE(SUM(di.weight * er.active_rate), 0) as totalPayout
+    FROM member m
+    JOIN deposit d ON CAST(m.id AS INTEGER) = CAST(d.member_id AS INTEGER)
+    JOIN event e ON d.event_id = e.id
+    JOIN deposit_item di ON d.id = di.deposit_id
+    JOIN event_rate er ON er.event_id = d.event_id AND er.category_id = di.category_id
+    WHERE e.event_date BETWEEN $1 AND $2
+    GROUP BY m.id, e.id
+    ORDER BY m.join_date ASC, e.event_date ASC`,
+    [startDate, endDate]
+  );
+
+  // Get previous semester label for rollover
+  const prevSemester = getPreviousSemester(semesterLabel);
+
+  // Get all members who have savings from the previous semester
+  const rolloverRows = await db.select<{
+    member_id: number;
+    saved_amount: number;
+    is_saved: number;
+  }[]>(
+    'SELECT member_id, saved_amount, is_saved FROM semester_savings WHERE semester_label = $1 AND is_saved = 1',
+    [prevSemester]
+  );
+
+  const rolloverMap: Record<number, number> = {};
+  for (const r of rolloverRows) {
+    rolloverMap[r.member_id] = r.saved_amount;
+  }
+
+  // Get current semester savings status per member
+  const currentSavingsRows = await db.select<{
+    member_id: number;
+    is_saved: number;
+  }[]>(
+    'SELECT member_id, is_saved FROM semester_savings WHERE semester_label = $1',
+    [semesterLabel]
+  );
+
+  const savedMap: Record<number, boolean> = {};
+  for (const r of currentSavingsRows) {
+    savedMap[r.member_id] = r.is_saved === 1;
+  }
+
+  // Build result
+  const memberMap: Record<number, MemberSemesterPayment> = {};
+
+  for (const p of payouts) {
+    if (!memberMap[p.memberId]) {
+      memberMap[p.memberId] = {
+        memberId: p.memberId,
+        memberName: p.memberName,
+        eventPayouts: {},
+        semesterPayout: 0,
+        rolloverSavings: rolloverMap[p.memberId] || 0,
+        isSaved: savedMap[p.memberId] || false,
+      };
+    }
+    memberMap[p.memberId].eventPayouts[p.eventId] = p.totalPayout;
+    memberMap[p.memberId].semesterPayout += p.totalPayout;
+  }
+
+  // Also include members with rollover savings but no current semester activity
+  for (const memberId of Object.keys(rolloverMap).map(Number)) {
+    if (!memberMap[memberId]) {
+      // Need member name
+      const memberRows = await db.select<{ id: number; name: string }[]>(
+        'SELECT id, name FROM member WHERE id = $1',
+        [memberId]
+      );
+      if (memberRows.length > 0) {
+        memberMap[memberId] = {
+          memberId: memberRows[0].id,
+          memberName: memberRows[0].name,
+          eventPayouts: {},
+          semesterPayout: 0,
+          rolloverSavings: rolloverMap[memberId] || 0,
+          isSaved: savedMap[memberId] || false,
+        };
+      }
+    }
+  }
+
+  // Sort by join_date
+  const members = await db.select<{ id: number }[]>(
+    'SELECT id FROM member ORDER BY join_date ASC'
+  );
+  const memberOrder = new Map(members.map((m, i) => [m.id, i]));
+
+  return Object.values(memberMap).sort(
+    (a, b) => (memberOrder.get(a.memberId) ?? 999) - (memberOrder.get(b.memberId) ?? 999)
+  );
+}
+
+/**
+ * Get semester summary totals across all members.
+ */
+export async function getSemesterSummary(
+  semesterLabel: SemesterLabel
+): Promise<{
+  totalSemesterPayout: number;
+  totalRolloverSavings: number;
+  grandTotal: number;
+}> {
+  const data = await getMemberSemesterPivot(semesterLabel);
+  const totalSemesterPayout = data.reduce((sum, d) => sum + d.semesterPayout, 0);
+  const totalRolloverSavings = data.reduce((sum, d) => sum + d.rolloverSavings, 0);
+  return {
+    totalSemesterPayout,
+    totalRolloverSavings,
+    grandTotal: totalSemesterPayout + totalRolloverSavings,
+  };
 }
