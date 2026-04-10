@@ -56,7 +56,7 @@ export function AddDepositModal({ isOpen, onClose, eventId }: AddDepositModalPro
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose() }}>
-      <DialogContent className="max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-h-[90vh] max-w-6xl flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle>Tambah Setoran</DialogTitle>
         </DialogHeader>
