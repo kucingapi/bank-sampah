@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Tags, Calendar, Circle, Truck, Moon, Sun } from "lucide-react"
+import { LayoutDashboard, Users, Tags, Calendar, Circle, Truck, Moon, Sun, Wallet } from "lucide-react"
 import { APP_NAME } from "@/shared/config"
 import { Button } from "@/shared/ui/ui/button"
 import { ThemeSwitch } from "@/shared/ui/ui/theme-switch"
@@ -27,7 +27,8 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   const menuItems = [
     { id: "overview", icon: LayoutDashboard, label: "Ringkasan" },
     { id: "calendar", icon: Calendar, label: "Penyetoran" },
-    { id: "members", icon: Users, label: "Direktori Anggota" },
+    { id: "members", icon: Users, label: "Anggota" },
+    { id: "members-payment", icon: Wallet, label: "Pembayaran Anggota" },
     { id: "categories", icon: Tags, label: "Skema Kategori" },
     { id: "vendors", icon: Truck, label: "Vendor" },
   ]
@@ -48,7 +49,8 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
             activeView === item.id ||
             (activeView === "event-details" && item.id === "calendar") ||
             (activeView === "event-entry" && item.id === "calendar") ||
-            (activeView === "vendor-report" && item.id === "calendar")
+            (activeView === "vendor-report" && item.id === "calendar") ||
+            (activeView === "member-directory" && item.id === "members")
 
           return (
             <Button

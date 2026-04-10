@@ -11,6 +11,8 @@ export const queryKeys = {
     list: (filters?: { search?: string; eventDateStart?: string; eventDateEnd?: string }) =>
       [...queryKeys.members.all, 'list', filters] as const,
     earnings: (id: number) => [...queryKeys.members.all, 'earnings', id] as const,
+    paymentList: (filters?: { eventDateStart?: string; eventDateEnd?: string }) =>
+      [...queryKeys.members.all, 'paymentList', filters] as const,
   },
   categories: {
     all: ['categories'] as const,

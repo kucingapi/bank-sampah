@@ -8,7 +8,8 @@ import { EventsCalendarPage } from '@/pages/events-calendar';
 import { EventDetailsPage } from '@/pages/event-details';
 import { EventEntryPage } from '@/pages/event-entry';
 import { VendorReportPage } from '@/pages/vendor-report';
-import { MembersPage } from '@/pages/members';
+import { MemberDirectoryPage } from '@/pages/member-directory';
+import { MemberPaymentPage } from '@/pages/member-payment';
 import { CategoriesPage } from '@/pages/categories';
 import { VendorsPage } from '@/pages/vendors';
 
@@ -35,7 +36,9 @@ export function App() {
       case 'calendar': return <EventsCalendarPage />;
       case 'event-details': return activeEventId ? <EventDetailsPage eventId={activeEventId} /> : <div className="p-12">Sesi Tidak Valid</div>;
       case 'event-entry': return activeEventId ? <EventEntryPage eventId={activeEventId} depositId={activeDepositId} /> : <div className="p-12">Sesi Tidak Valid</div>;
-      case 'members': return <MembersPage />;
+      case 'members':
+      case 'member-directory': return <MemberDirectoryPage />;
+      case 'members-payment': return <MemberPaymentPage />;
       case 'categories': return <CategoriesPage />;
       case 'vendors': return <VendorsPage />;
       case 'vendor-report': return activeEventId ? <VendorReportPage eventId={activeEventId} /> : <div className="p-12">Sesi Tidak Valid</div>;
