@@ -14,7 +14,6 @@ import {
   getSemesterOptions,
   getDefaultSemester,
   getPreviousSemester,
-  formatSemesterLabel,
   type SemesterLabel,
 } from "@/shared/lib/semester"
 import { formatCurrency } from "@/shared/lib/format"
@@ -29,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/ui/select"
-import { Switch } from "@/shared/ui/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -247,7 +245,7 @@ export function MemberPaymentPage() {
   const saveMutation = useUpsertSemesterSavings()
   const exportMutation = useExportMemberPaymentPivot()
 
-  const handleSaveToggle = useCallback(async (memberId: number, memberName: string, semesterPayout: number, currentIsSaved: boolean) => {
+  const handleSaveToggle = useCallback(async (memberId: number, _memberName: string, semesterPayout: number, currentIsSaved: boolean) => {
     const newIsSaved = !currentIsSaved
     const prevSemester = getPreviousSemester(semester)
 
@@ -272,6 +270,7 @@ export function MemberPaymentPage() {
       memberName: p.memberName,
       eventPayouts: p.eventPayouts,
       totalPayout: p.semesterPayout + p.rolloverSavings,
+      rolloverSavings: 0,
     }))
 
     const csv = await exportMutation.mutateAsync({ events, pivotData: exportPivotData })

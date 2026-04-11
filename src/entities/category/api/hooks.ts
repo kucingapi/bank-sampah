@@ -18,12 +18,14 @@ export function useCreateCategory() {
       name,
       unit,
       defaultRate,
+      archived,
     }: {
       id: string;
       name: string;
       unit: string;
       defaultRate: number;
-    }) => createCategory(id, name, unit, defaultRate),
+      archived?: boolean;
+    }) => createCategory(id, name, unit, defaultRate, archived),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
     },

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Tags, Calendar, Circle, Truck, Moon, Sun, Wallet } from "lucide-react"
+import { LayoutDashboard, Users, Tags, Calendar, Circle, Truck, Moon, Sun, Wallet, Settings } from "lucide-react"
 import { APP_NAME } from "@/shared/config"
 import { Button } from "@/shared/ui/ui/button"
 import { ThemeSwitch } from "@/shared/ui/ui/theme-switch"
@@ -31,6 +31,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
     { id: "members-payment", icon: Wallet, label: "Pembayaran Anggota" },
     { id: "categories", icon: Tags, label: "Skema Kategori" },
     { id: "vendors", icon: Truck, label: "Vendor" },
+    { id: "settings", icon: Settings, label: "Pengaturan" },
   ]
 
   return (

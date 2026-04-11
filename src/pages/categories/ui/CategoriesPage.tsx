@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react"
-import { Plus, X } from "lucide-react"
+import { Plus, X, Archive, ArchiveRestore } from "lucide-react"
+import { toast } from "sonner"
 import {
   useCategories,
   useCreateCategory,
@@ -22,16 +23,14 @@ import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
+import { Badge } from "@/shared/ui/ui/badge"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/shared/ui/ui/alert-dialog"
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/ui/tooltip"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/ui/ui/alert-dialog"
 
 function CategoriesPageSkeleton() {
   return (
@@ -78,6 +77,7 @@ function CategoriesPageSkeleton() {
                   <TableHead><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead><Skeleton className="h-4 w-12" /></TableHead>
                   <TableHead><Skeleton className="h-4 w-28" /></TableHead>
+                  <TableHead className="text-center w-20"><Skeleton className="h-4 w-16 mx-auto" /></TableHead>
                   <TableHead className="w-12"><Skeleton className="h-4 w-4" /></TableHead>
                 </TableRow>
               </TableHeader>
@@ -87,6 +87,7 @@ function CategoriesPageSkeleton() {
                     <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                     <TableCell><Skeleton className="h-10 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-10 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-10 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))}
@@ -112,6 +113,8 @@ export function CategoriesPage() {
   const updateCategory = useUpdateCategory()
   const deleteCategory = useDeleteCategory()
 
+  const visibleCategories = categories
+
   const generateSafeId = (name: string) => {
     return name
       .toLowerCase()
@@ -124,7 +127,8 @@ export function CategoriesPage() {
       id: cat.id,
       name: cat.name,
       unit: cat.unit,
-      default_rate: cat.default_rate
+      default_rate: cat.default_rate,
+      archived: cat.archived ? 'yes' : 'no'
     }))
   }, [categories])
 
@@ -142,7 +146,7 @@ export function CategoriesPage() {
         (c) => c.name.toLowerCase() === newName.trim().toLowerCase()
       )
       if (existingCategory) {
-        alert("Nama kategori sudah ada. Silakan gunakan nama yang berbeda.")
+        toast.error("Nama kategori sudah ada. Silakan gunakan nama yang berbeda.")
         return
       }
 
@@ -152,6 +156,7 @@ export function CategoriesPage() {
         unit: newUnit,
         defaultRate: parseFloat(newRate)
       })
+      toast.success(`"${newName.trim()}" berhasil ditambahkan.`)
       setNewName("")
       setNewRate("")
       setNewUnit("kg")
@@ -159,20 +164,32 @@ export function CategoriesPage() {
       console.error("Failed to create", err)
       const isDuplicateId = categories.some((c) => c.id === safeIdPreview)
       if (isDuplicateId) {
-        alert(
+        toast.error(
           "ID kategori sudah digunakan. Gunakan nama yang berbeda untuk menghasilkan ID unik."
         )
       } else {
-        alert("Gagal membuat kategori. Silakan coba lagi.")
+        toast.error("Gagal membuat kategori. Silakan coba lagi.")
       }
     }
   }
 
   const handleUpdate = async (id: string, field: keyof Category, value: any) => {
+    const cat = categories.find((c) => c.id === id)
     try {
       await updateCategory.mutateAsync({ id, updates: { [field]: value } })
+
+      if (field === "archived") {
+        const action = value ? "diarsipkan" : "diaktifkan untuk sesi baru"
+        toast.success(`"${cat?.name}" ${action}.`, {
+          description: value
+            ? "Kategori tidak akan otomatis aktif di sesi baru."
+            : "Kategori akan otomatis aktif di sesi baru.",
+        })
+      }
     } catch (err) {
       console.error("Update failed", err)
+      const errorMessage = err instanceof Error ? err.message : "Terjadi kesalahan"
+      toast.error(`Gagal memperbarui kategori: ${errorMessage}`)
     }
   }
 
@@ -183,10 +200,13 @@ export function CategoriesPage() {
 
   const confirmDelete = async () => {
     if (!categoryToDelete) return
+    const cat = categories.find((c) => c.id === categoryToDelete)
     try {
       await deleteCategory.mutateAsync(categoryToDelete)
+      toast.success(`"${cat?.name}" berhasil dihapus.`)
     } catch (err) {
       console.error("Failed to delete", err)
+      toast.error("Gagal menghapus kategori.")
     } finally {
       setCategoryToDelete(null)
     }
@@ -274,7 +294,7 @@ export function CategoriesPage() {
               <ExportCSVButton onExport={handleExport} filename="categories" />
             </div>
             <span className="text-sm font-medium text-muted-foreground">
-              {categories.length} entri
+              {visibleCategories.length} entri
             </span>
           </div>
 
@@ -285,29 +305,36 @@ export function CategoriesPage() {
                   <TableHead>Material</TableHead>
                   <TableHead>Satuan</TableHead>
                   <TableHead>Harga Dasar Jual ke Vendor (Rp)</TableHead>
+                  <TableHead className="text-center w-20">Sesi Baru</TableHead>
                   <TableHead className="text-center w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.length === 0 ? (
+                {visibleCategories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
                       Belum ada kategori terdaftar.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  categories.map((cat) => (
+                  visibleCategories.map((cat) => (
                     <TableRow key={cat.id}>
                       <TableCell>
                         <Input
                           className="font-medium"
-                          value={cat.name}
-                          onChange={(e) =>
-                            handleUpdate(cat.id, "name", e.target.value)
-                          }
+                          defaultValue={cat.name}
                           onBlur={(e) => {
-                            if (e.target.value.trim() !== "") {
-                              handleUpdate(cat.id, "name", e.target.value.trim())
+                            const newValue = e.target.value.trim()
+                            if (newValue && newValue !== cat.name) {
+                              handleUpdate(cat.id, "name", newValue)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const newValue = (e.target as HTMLInputElement).value.trim()
+                              if (newValue && newValue !== cat.name) {
+                                handleUpdate(cat.id, "name", newValue)
+                              }
                             }
                           }}
                         />
@@ -328,18 +355,57 @@ export function CategoriesPage() {
                         <Input
                           type="number"
                           className="tabular-nums"
-                          value={cat.default_rate}
-                          onChange={(e) =>
-                            handleUpdate(cat.id, "default_rate", parseFloat(e.target.value) || 0)
-                          }
-                          onBlur={(e) =>
-                            handleUpdate(
-                              cat.id,
-                              "default_rate",
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
+                          defaultValue={cat.default_rate}
+                          onBlur={(e) => {
+                            const newValue = parseFloat(e.target.value) || 0
+                            if (newValue !== cat.default_rate) {
+                              handleUpdate(cat.id, "default_rate", newValue)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const newValue = parseFloat((e.target as HTMLInputElement).value) || 0
+                              if (newValue !== cat.default_rate) {
+                                handleUpdate(cat.id, "default_rate", newValue)
+                              }
+                            }
+                          }}
                         />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={cat.archived ? "secondary" : "default"}
+                                className="cursor-pointer gap-1 px-2 py-0.5 text-xs transition-opacity hover:opacity-80"
+                                onClick={() =>
+                                  handleUpdate(cat.id, "archived", !cat.archived)
+                                }
+                                role="switch"
+                                aria-checked={!cat.archived}
+                                aria-label={cat.archived ? "Aktifkan untuk sesi baru" : "Arsipkan"}
+                              >
+                                {cat.archived ? (
+                                  <>
+                                    <Archive className="size-3" />
+                                    Arsip
+                                  </>
+                                ) : (
+                                  <>
+                                    <ArchiveRestore className="size-3" />
+                                    Aktif
+                                  </>
+                                )}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {cat.archived
+                                ? "Kategori diarsipkan — tidak otomatis aktif di sesi baru. Klik untuk mengaktifkan."
+                                : "Kategori aktif — otomatis tersedia di sesi baru. Klik untuk mengarsipkan."}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell className="text-center">
                         <Button
@@ -365,6 +431,10 @@ export function CategoriesPage() {
             diterapkan pada pembuatan Sesi berikutnya, atau dengan melakukan
             sinkronisasi harga manual pada menu Daftar Sesi.
           </p>
+          <p className="text-muted-foreground/60 text-xs leading-relaxed max-w-xl">
+            Kolom <strong>Sesi Baru</strong> menentukan apakah kategori otomatis aktif saat sesi baru dibuat.
+            Kategori yang diarsipkan tetap terlihat dan dapat diedit, tetapi tidak otomatis aktif di sesi baru.
+          </p>
         </div>
       </div>
 
@@ -373,7 +443,8 @@ export function CategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Kategori</AlertDialogTitle>
             <AlertDialogDescription>
-              Hapus kategori ini secara permanen dari daftar master?
+              Hapus <strong>{categories.find((c) => c.id === categoryToDelete)?.name}</strong> secara permanen dari daftar master?
+              Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

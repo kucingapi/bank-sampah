@@ -70,6 +70,7 @@ export async function getMemberPaymentPivot(
         memberName: p.memberName,
         eventPayouts: {},
         totalPayout: 0,
+        rolloverSavings: 0,
       };
     }
     memberMap[p.memberId].eventPayouts[p.eventId] = p.totalPayout;
@@ -228,8 +229,8 @@ export async function getMemberSemesterPivot(
     endDate = `${year}-12-31`;
   }
 
-  // Get events in this semester
-  const events = await db.select<{ id: string; event_date: string }[]>(
+  // Get events in this semester (used for debugging)
+  await db.select<{ id: string; event_date: string }[]>(
     'SELECT id, event_date FROM event WHERE event_date BETWEEN $1 AND $2 ORDER BY event_date ASC',
     [startDate, endDate]
   );

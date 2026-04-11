@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useImperativeHandle, forwardRef, useCallback } from "react"
-import { Scale, Receipt, User, UserPlus, Search, Check, Keyboard, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from "lucide-react"
+import { Scale, Receipt, User, UserPlus, Search, Check, Keyboard } from "lucide-react"
 import { useEventRates } from "@/entities/event/api/hooks"
 import { useMembers, useCreateMember } from "@/entities/member/api/hooks"
 import { useDeposit, useCreateDeposit, useUpdateDeposit } from "@/entities/deposit/api/hooks"
@@ -63,7 +63,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
   const updateDeposit = useUpdateDeposit()
   const createMember = useCreateMember()
 
-  // Expose focusCategory to parent via ref
+  // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     focusCategory: (categoryId: string) => {
       const el = categoryInputRefs.current[categoryId]
@@ -72,6 +72,8 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
         el.scrollIntoView({ behavior: "smooth", block: "center" })
       }
     },
+    handleSubmit,
+    hasSelectedMember: () => !!selectedMember,
   }))
 
   useEffect(() => {

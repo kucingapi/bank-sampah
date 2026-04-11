@@ -57,7 +57,7 @@ export function useUpsertSemesterSavings() {
       rolledFrom: string | null;
     }) =>
       upsertSemesterSavings(memberId, semesterLabel, savedAmount, isSaved, rolledFrom),
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       // Invalidate everything related to pembayaran anggota
       queryClient.invalidateQueries({ queryKey: queryKeys.members.all });
       queryClient.invalidateQueries({ queryKey: ['events'] });

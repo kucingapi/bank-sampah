@@ -4,4 +4,5 @@ export interface Category {
   unit: string;
   default_rate: number;
   status: string;
+  archived: boolean;
 }

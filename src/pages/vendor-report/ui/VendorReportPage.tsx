@@ -302,7 +302,7 @@ export function VendorReportPage({ eventId }: Props) {
           </button>
           <div>
             <h1 className="text-3xl font-semibold text-foreground">
-              Manifest <span className="text-muted-foreground/60">Keluaran</span>
+              Laporan <span className="text-muted-foreground/60">Penyetoran</span>
             </h1>
             <p className="mt-2 text-muted-foreground text-sm">Distribusi penjualan material sesi {new Date(event.event_date).toLocaleDateString('id-ID')}.</p>
           </div>

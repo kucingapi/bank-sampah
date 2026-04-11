@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react"
-import { ArrowLeft, AlertCircle } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/shared/ui/ui/button"
 import { DepositForm, type DepositFormRef } from "@/features/event-entry/ui/DepositForm"
 import { CategoryCommandDialogComponent } from "@/features/event-entry/ui/CategoryCommandDialog"

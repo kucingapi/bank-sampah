@@ -5,6 +5,7 @@ interface CategorySeed {
   name: string
   unit: string
   default_rate: number
+  archived?: boolean
 }
 
 const CATEGORIES: CategorySeed[] = [
@@ -30,26 +31,127 @@ const CATEGORIES: CategorySeed[] = [
   { id: 'c20', name: 'Organik', unit: 'kg', default_rate: 500 },
 ]
 
-const FIRST_NAMES = [
-  'Ahmad', 'Budi', 'Citra', 'Dewi', 'Eko', 'Fajar', 'Gita', 'Hendra', 'Indah', 'Joko',
-  'Kartini', 'Lukman', 'Maya', 'Nana', 'Oscar', 'Putri', 'Qori', 'Rina', 'Surya', 'Tati',
-  'Umar', 'Vina', 'Wawan', 'Xena', 'Yanti', 'Zainal', 'Adi', 'Bayu', 'Caca', 'Dian',
-  'Erna', 'Farhan', 'Gani', 'Hana', 'Irfan', 'Jasmine', 'Krisna', 'Lina', 'Mamat', 'Nita',
-  'Opi', 'Purnama', 'Rahma', 'Sari', 'Tono', 'Umi', 'Vicky', 'Winda', 'Yoga', 'Zahra',
+// Real member data: [name, address]
+const REAL_MEMBERS: [string, string][] = [
+  ['IBU HJ.YURLI', 'MULIA IX/12'],
+  ['IBU LINAWATI', 'INDAH V/100'],
+  ['IBU SISCA', 'MULIA XI/33'],
+  ['IBU INDRI', 'INDAH V/114'],
+  ['PAK RUDY KWARIA', 'MULIA IX/6'],
+  ['IBU LILY/BAMBANG', 'INDAH IX/34'],
+  ['IBU SILVIA', 'MULIA XII/57'],
+  ['IBU TUTY', 'MULIA XII/21'],
+  ['IBU SILVI', 'MULIA XII/55'],
+  ['IBU INA', 'MULIA IX/32'],
+  ['PAK ERWIN', 'MULIA IV/2'],
+  ['PAK RIZAL', 'MULIA RAYA/42'],
+  ['PAK YONGKI', 'MULIA XII/55'],
+  ['PAK DENI ROCHMAN', 'MULIA RAYA/4'],
+  ['IBU ANA', 'MULIA XII/29'],
+  ['IBU MIL', 'SENTOSA I/9'],
+  ['KANG ASEP', 'MULIA IX-2'],
+  ['PAK FAJAR', 'MULIA V/79'],
+  ['IBU SUNAR', 'MULIA IX/30'],
+  ['IBU SUSI', 'MULIA IX/51'],
+  ['PAK ARYO', 'MULIA RAYA/7'],
+  ['IBU YANTI', 'MULIA XII/1'],
+  ['PAK SUWANDI', 'INDAH III/11A'],
+  ['IBU RATNA', 'INDAH V/126'],
+  ['IBU YULIA', 'MULIA XII-14'],
+  ['IBU LEONI', 'INDAH VIII'],
+  ['PAK TJIPTO', 'INDAH IX/59'],
+  ['IBU ICHA', 'INDAH V/133'],
+  ['PAK NIRWANSYAH', 'MULIA XII-16'],
+  ['IBU AIDA', 'MULIA XII-19'],
+  ['PAK GUNAWAN', 'MULIA I'],
+  ['PAK BENNY/SANTI', 'MULIA IX/77'],
+  ['PAK RULIANSYAH', 'INDAH V/101'],
+  ['IBU FEBRY', 'MULIA I/24'],
+  ['PAK THOMAS', 'MULIA II/7'],
+  ['IBU RATNA', 'INDAH IV/99'],
+  ['IBU WIWI', 'MULIA XII/9'],
+  ['IBU SONY BACHTIAR', 'MULIA XI/4'],
+  ['IBU YULI', 'MULIA XI/20'],
+  ['IBU KUSTINA/TIPLUK', 'MULIA UTARA'],
+  ['IBU MILA', 'MULIA IX/4'],
+  ['IBU DEWI', 'PERMAI IV/26'],
+  ['KANG YADI', 'WAAS'],
+  ['PAK CECEP', 'MULIA IX/2'],
+  ['IBU YANTI', 'MULIA RAYA/50'],
+  ['PAK HENDRY', 'MULIA RAYA/26'],
+  ['IBU ERNIWATI', 'INDAH V/135'],
+  ['PAK RAHMAT', 'MULIA IX/2'],
+  ['PAK DEDI BISRI', 'SENTOSA I/8A'],
+  ['IBU FEFEI', 'MULIA RAYA/24'],
+  ['PAK ARIS', 'MULIA XII/61'],
+  ['IBU MELSY', 'MULIA XII/75'],
+  ['IBU MELINDA', 'MULIA IV/22'],
+  ['KEL.MENGGER', 'TERS.BATUNUNGGAL'],
+  ['IBU ELLY', 'MULIA XII/51'],
+  ['PAK NUH', 'MULIA XII/50'],
+  ['PAK DEDI HERMAWAN', 'MULIA IX/26'],
+  ['IBU DEBBY S', 'MULIA XI/27'],
+  ['IBU WINA', 'MULIA XIII/48'],
+  ['IBU AYI', 'MULIA XII/38'],
+  ['IBU PUTRI', 'MULIA V/21'],
+  ['IBU SANTI SENTOSA', 'SENTOSA'],
+  ['IBU LILY', 'MULIA III/20'],
+  ['IBU MIRA', 'SALEDRI 22'],
+  ['IBU YULI', 'MULIA XI/20'],
+  ['BU IDA', 'MULIA XI/34'],
+  ['IBU SUSI/DENDIE', 'INDAH V/119'],
+  ['IBU FRIDA', 'MOLEK II/33'],
+  ['BPR PUNDI KENCANA', ''],
+  ['PAK FAUZI', 'MULIA IX/2'],
+  ['IBU SUSANA', 'PARAKAN WAAS 2'],
+  ['PAK HENGKY', 'INDAH IX/43'],
+  ['PAK BUDI/IBU NIA', 'MULIA RAYA/6'],
+  ['PAK ASEP', 'RUKO INDAH RAYA/179'],
+  ['IBU PAULA', 'PARAKAN ASRI 19'],
+  ['PAK RANDI', 'JL.LOGAM'],
+  ['IBU LENI', 'LINGGA WISESA/21'],
+  ['IBU HANA', 'PERMAI II/69'],
+  ['PAK RONNY', 'MULIA XII/17'],
+  ['PAK GUNTUR/IBU LILY', 'MULIA RAYA/79'],
+  ['IBU RATNA', 'INDAH V/114'],
+  ['PAK YADI', 'MULIA XI/12'],
+  ['PAK PAULUS', 'SOEKARNO HATTA/698'],
+  ['PAK FERDY', ''],
+  ['IBU NADIA', 'MULIA XI/14'],
+  ['IBU VITASYA', 'MULIA XI/19'],
+  ['PAK ANDRO', 'MULIA IX/16'],
+  ['IBU YUNNY', 'MULIA IV/36'],
+  ['IBU YANTI', 'MULIA XII/11'],
+  ['IBU LIE SUSILAWATI', 'MULIA IX/53'],
+  ['PAK HARI LIEM', 'MULIA XI/42'],
+  ['IBU HUSNUL/YUNITA', 'INDAH V/132'],
+  ['IBU ROSE', 'MULIA XI/39'],
+  ['IBU RINA', 'MULIA XII/56'],
+  ['IBU CHENCHEN', 'MULIA RAYA/9'],
+  ['IBU FARIDA', 'MULIA XIII/53'],
+  ['IBU LINDA', 'MULIA II/27'],
+  ['PAK HANDY', 'MULIA V/55A'],
+  ['PAK IYUS', 'INDAH V/129'],
+  ['PAK SYARIPUDIN (BIC)', 'BIC'],
+  ['IBU AYU', 'MULIA XII/2'],
+  ['KRING BARTO', 'PARAKAN ASRI V/4'],
+  ['IBU DIANA', 'ABADI IV/5'],
+  ['IBU AYI', 'MULIA XI/15'],
+  ['PAK THOMAS S', 'MULIA XIII/54'],
+  ['PAK ALI', 'SENTOSA I/38'],
+  ['WHEELS-RIAN', ''],
+  ['PAK ASO', 'MULIA V/26'],
+  ['IBU KOSIM', 'MULIA RAYA/2'],
+  ['PT.SINERGY DIAGNOSTIC', 'PERMAI VI/24'],
+  ['PAK YONGKI', 'ALOY 3 SELATAN'],
+  ['PAK YANPI', 'MULIA XIII/31'],
+  ['BU MUJI LESTARI', 'MULIA XII/4'],
+  ['BSM', 'MULIA IX/2'],
+  ['IBU FARIDA', 'MULIA XIII/40'],
+  ['IBU VERA', 'INDAH IX/38'],
+  ['IBU ELLY SISCA', 'BN SARI NO.1'],
+  ['IBU TARI', 'MULIA XIII/52'],
 ]
-
-const LAST_NAMES = [
-  'Saputra', 'Wati', 'Hidayat', 'Rahayu', 'Pratama', 'Sari', 'Wibowo', 'Kusuma', 'Purnama', 'Setiawan',
-  'Hartono', 'Susanti', 'Wahyudi', 'Lestari', 'Nugroho', 'Permata', 'Firmansyah', 'Astuti', 'Gunawan', 'Maulana',
-  'Siregar', 'Nasution', 'Harahap', 'Simanjuntak', 'Pangaribuan', 'Sihombing', 'Tampubolon', 'Sinaga', 'Marbun', 'Hutapea',
-]
-
-const VILLAGES = [
-  'Desa Sukamaju', 'Desa Sukamakmur', 'Desa Sukajadi', 'Desa Sukasari', 'Desa Sukadamai',
-  'Desa Sukaraja', 'Desa Sukabumi', 'Desa Sukapura', 'Desa Sukamulya', 'Desa Sukaresmi',
-]
-
-const RT_RW = ['001/001', '001/002', '002/001', '002/002', '003/001', '003/002', '004/001', '004/002', '005/001', '005/002']
 
 function seededRandom(seed: number): () => number {
   let s = seed
@@ -66,41 +168,20 @@ export async function seedBankSampah() {
   // ── 1. Insert 20 categories ──
   for (const cat of CATEGORIES) {
     await db.execute(
-      'INSERT OR REPLACE INTO category (id, name, unit, default_rate, status) VALUES (?, ?, ?, ?, ?)',
-      [cat.id, cat.name, cat.unit, cat.default_rate, 'active']
+      'INSERT OR REPLACE INTO category (id, name, unit, default_rate, status, archived) VALUES (?, ?, ?, ?, ?, ?)',
+      [cat.id, cat.name, cat.unit, cat.default_rate, 'active', cat.archived ? 1 : 0]
     )
   }
   console.log(`✅ ${CATEGORIES.length} categories seeded`)
 
-  // ── 2. Insert 170 members ──
-  const memberNames: string[] = []
-  const nameSet = new Set<string>()
-  let attempt = 0
-  while (memberNames.length < 170 && attempt < 500) {
-    const first = FIRST_NAMES[Math.floor(rand() * FIRST_NAMES.length)]
-    const last = LAST_NAMES[Math.floor(rand() * LAST_NAMES.length)]
-    const name = `${first} ${last}`
-    if (!nameSet.has(name)) {
-      nameSet.add(name)
-      memberNames.push(name)
-    }
-    attempt++
-  }
-
-  // Fill remaining if needed with numbered suffixes
-  let idx = 0
-  while (memberNames.length < 170) {
-    memberNames.push(`Anggota ${++idx}`)
-  }
-
+  // ── 2. Insert real members ──
   const memberIds: number[] = []
-  for (const name of memberNames) {
-    const village = VILLAGES[Math.floor(rand() * VILLAGES.length)]
-    const rtRw = RT_RW[Math.floor(rand() * RT_RW.length)]
-    const joinDate = '2025-01-01'
+  const joinDate = '2025-01-01'
+  for (const [name, address] of REAL_MEMBERS) {
+    const phone = `08${Math.floor(rand() * 900000000 + 100000000).toString()}`
     const result = await db.execute(
       'INSERT INTO member (name, address, phone, join_date) VALUES (?, ?, ?, ?)',
-      [name, `${village} RT ${rtRw}`, `08${Math.floor(rand() * 900000000 + 100000000).toString()}`, joinDate]
+      [name, address || null, phone, joinDate]
     )
     if (result.lastInsertId) memberIds.push(Number(result.lastInsertId))
   }
@@ -127,7 +208,7 @@ export async function seedBankSampah() {
   }
   console.log(`✅ ${CATEGORIES.length} event_rates seeded`)
 
-  // ── 5. Create deposits for all 170 members ──
+  // ── 5. Create deposits for all members ──
   const catIds = CATEGORIES.map(c => c.id)
   let depositCount = 0
 

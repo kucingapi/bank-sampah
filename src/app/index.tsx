@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/shared/api/query-client';
 import { ThemeProvider } from '@/shared/context/theme-context';
+import { BackupProvider } from '@/shared/context/backup-context';
+import { Toaster } from 'sonner';
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
 import { OverviewPage } from '@/pages/overview';
 import { EventsCalendarPage } from '@/pages/events-calendar';
@@ -12,6 +14,8 @@ import { MemberDirectoryPage } from '@/pages/member-directory';
 import { MemberPaymentPage } from '@/pages/member-payment';
 import { CategoriesPage } from '@/pages/categories';
 import { VendorsPage } from '@/pages/vendors';
+import { SettingsPage } from '@/pages/settings';
+import { autoSeedIfEmpty } from '@/shared/lib/auto-seed';
 
 
 
@@ -19,6 +23,11 @@ export function App() {
   const [activeView, setActiveView] = useState('overview');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [activeDepositId, setActiveDepositId] = useState<string | null>(null);
+
+  // Auto-seed on first install if database is empty
+  useEffect(() => {
+    autoSeedIfEmpty();
+  }, []);
 
   useEffect(() => {
     const handleNav = (e: CustomEvent) => {
@@ -42,6 +51,7 @@ export function App() {
       case 'categories': return <CategoriesPage />;
       case 'vendors': return <VendorsPage />;
       case 'vendor-report': return activeEventId ? <VendorReportPage eventId={activeEventId} /> : <div className="p-12">Sesi Tidak Valid</div>;
+      case 'settings': return <SettingsPage />;
 
       default: return <OverviewPage />;
     }
@@ -50,12 +60,20 @@ export function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <div className="flex bg-background min-h-screen text-foreground font-sans antialiased">
-          <Sidebar activeView={activeView} onNavigate={setActiveView} />
-          <main className="flex-1 ml-64 overflow-y-auto min-h-screen transition-opacity duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
-            {renderView()}
-          </main>
-        </div>
+        <BackupProvider>
+          <Toaster
+            position="top-right"
+            expand={false}
+            richColors
+            closeButton
+          />
+          <div className="flex bg-background min-h-screen text-foreground font-sans antialiased">
+            <Sidebar activeView={activeView} onNavigate={setActiveView} />
+            <main className="flex-1 ml-64 overflow-y-auto min-h-screen transition-opacity duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+              {renderView()}
+            </main>
+          </div>
+        </BackupProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

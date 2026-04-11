@@ -87,16 +87,17 @@ export async function syncEventRates(eventId: string): Promise<void> {
   await ensureOutboundRateColumn();
   await db.execute('DELETE FROM event_rate WHERE event_id = $1', [eventId]);
 
-  const categories = await db.select<{id: string, default_rate: number}[]>(
-    "SELECT id, default_rate FROM category"
+  const categories = await db.select<{id: string, default_rate: number, archived: number}[]>(
+    "SELECT id, default_rate, archived FROM category"
   );
 
   for (const cat of categories) {
     const sellRate = cat.default_rate;
     const buyRate = Math.round(sellRate * 0.90); // 10% below sell
+    const isActive = cat.archived ? 0 : 1; // archived → inactive for new sessions
     await db.execute(
-      'INSERT INTO event_rate (event_id, category_id, active_rate, outbound_rate, is_active) VALUES ($1, $2, $3, $4, 1)',
-      [eventId, cat.id, buyRate, sellRate]
+      'INSERT INTO event_rate (event_id, category_id, active_rate, outbound_rate, is_active) VALUES ($1, $2, $3, $4, $5)',
+      [eventId, cat.id, buyRate, sellRate, isActive]
     );
   }
 }
