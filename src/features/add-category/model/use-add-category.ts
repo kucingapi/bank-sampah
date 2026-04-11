@@ -10,7 +10,7 @@ export function useAddCategory(onSuccess: () => void) {
     setError('');
     
     try {
-      await createCategory(id, name, unit, defaultRate);
+      await createCategory(id, name, unit, defaultRate, Math.floor(defaultRate * 0.90));
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Failed to create category');

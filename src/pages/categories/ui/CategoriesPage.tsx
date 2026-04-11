@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react"
-import { Plus, X, Archive, ArchiveRestore } from "lucide-react"
+import { Plus, X, Archive, ArchiveRestore, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import {
   useCategories,
@@ -187,6 +187,34 @@ export function CategoriesPage() {
     }
   }
 
+  const handleMoveUp = async (id: string) => {
+    const idx = visibleCategories.findIndex(c => c.id === id)
+    if (idx <= 0) return
+    const currentOrder = visibleCategories[idx].sort_order
+    const prevOrder = visibleCategories[idx - 1].sort_order
+    try {
+      await updateCategory.mutateAsync({ id, updates: { sort_order: prevOrder } })
+      await updateCategory.mutateAsync({ id: visibleCategories[idx - 1].id, updates: { sort_order: currentOrder } })
+    } catch (err) {
+      console.error("Reorder failed", err)
+      toast.error("Gagal mengurutkan.")
+    }
+  }
+
+  const handleMoveDown = async (id: string) => {
+    const idx = visibleCategories.findIndex(c => c.id === id)
+    if (idx < 0 || idx >= visibleCategories.length - 1) return
+    const currentOrder = visibleCategories[idx].sort_order
+    const nextOrder = visibleCategories[idx + 1].sort_order
+    try {
+      await updateCategory.mutateAsync({ id, updates: { sort_order: nextOrder } })
+      await updateCategory.mutateAsync({ id: visibleCategories[idx + 1].id, updates: { sort_order: currentOrder } })
+    } catch (err) {
+      console.error("Reorder failed", err)
+      toast.error("Gagal mengurutkan.")
+    }
+  }
+
   const handleUpdate = async (id: string, field: keyof Category, value: any) => {
     const cat = categories.find((c) => c.id === id)
     try {
@@ -340,6 +368,7 @@ export function CategoriesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-20">Urutan</TableHead>
                   <TableHead>Material</TableHead>
                   <TableHead>Satuan</TableHead>
                   <TableHead>Harga Beli</TableHead>
@@ -351,13 +380,37 @@ export function CategoriesPage() {
               <TableBody>
                 {visibleCategories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
                       Belum ada kategori terdaftar.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  visibleCategories.map((cat) => (
+                  visibleCategories.map((cat, idx) => (
                     <TableRow key={cat.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleMoveUp(cat.id)}
+                            disabled={idx === 0}
+                            title="Pindah ke atas"
+                            className="h-7 w-7"
+                          >
+                            <ArrowUp className="size-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleMoveDown(cat.id)}
+                            disabled={idx === visibleCategories.length - 1}
+                            title="Pindah ke bawah"
+                            className="h-7 w-7"
+                          >
+                            <ArrowDown className="size-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Input
                           className="font-medium"

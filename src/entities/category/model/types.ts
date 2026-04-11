@@ -6,4 +6,5 @@ export interface Category {
   buy_rate: number;
   status: string;
   archived: boolean;
+  sort_order: number;
 }

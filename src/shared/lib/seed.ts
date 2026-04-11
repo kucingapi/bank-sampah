@@ -1,11 +1,26 @@
 import { getDb } from '@/shared/api'
 
+export interface SeedOptions {
+  kategori: boolean
+  anggota: boolean
+  event: boolean
+  deposit: boolean
+}
+
+export const DEFAULT_SEED_OPTIONS: SeedOptions = {
+  kategori: true,
+  anggota: true,
+  event: true,
+  deposit: true,
+}
+
 interface CategorySeed {
   id: string
   name: string
   unit: string
   default_rate: number
   archived?: boolean
+  sort_order?: number
 }
 
 const CATEGORIES: CategorySeed[] = [
@@ -186,10 +201,18 @@ function seededRandom(seed: number): () => number {
 
 export async function seedCategories() {
   const db = await getDb()
+  try {
+    await db.execute('ALTER TABLE category ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
+  } catch {
+    // Column already exists
+  }
+  CATEGORIES.forEach((cat, index) => {
+    cat.sort_order = index
+  })
   for (const cat of CATEGORIES) {
     await db.execute(
-      'INSERT OR REPLACE INTO category (id, name, unit, default_rate, buy_rate, status, archived) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [cat.id, cat.name, cat.unit, cat.default_rate, Math.floor(cat.default_rate * 0.90), 'active', cat.archived ? 1 : 0]
+      'INSERT OR REPLACE INTO category (id, name, unit, default_rate, buy_rate, status, archived, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [cat.id, cat.name, cat.unit, cat.default_rate, Math.floor(cat.default_rate * 0.90), 'active', cat.archived ? 1 : 0, cat.sort_order]
     )
   }
   console.log(`✅ ${CATEGORIES.length} categories seeded`)
@@ -284,15 +307,45 @@ export async function seedDeposits(eventId: string, memberIds: number[]) {
   console.log(`✅ ${depositCount} deposits seeded`)
 }
 
-export async function seedBankSampah() {
-  await seedCategories()
-  const memberIds = await seedMembers()
-  const eventId = await seedEvents()
-  await seedDeposits(eventId, memberIds)
+export async function seedBankSampah(opts: Partial<SeedOptions> = {}) {
+  const options: SeedOptions = { ...DEFAULT_SEED_OPTIONS, ...opts }
+
+  const results: string[] = []
+
+  if (options.kategori) {
+    await seedCategories()
+    results.push(`Kategori : ${CATEGORIES.length}`)
+  }
+  if (options.anggota) {
+    const memberIds = await seedMembers()
+    results.push(`Anggota  : ${memberIds.length}`)
+
+    if (options.event) {
+      const eventId = await seedEvents()
+      results.push(`Event    : 1`)
+
+      if (options.deposit) {
+        await seedDeposits(eventId, memberIds)
+        results.push(`Deposit  : ${memberIds.length}`)
+      }
+    }
+  } else if (options.event) {
+    const db = await getDb()
+    const members = await db.select<{ id: number }[]>('SELECT id FROM member LIMIT 1')
+    if (members.length === 0) {
+      console.warn('⚠️ Tidak ada anggota. Lewati event & deposit.')
+    } else {
+      const eventId = await seedEvents()
+      results.push(`Event    : 1`)
+      if (options.deposit) {
+        await seedDeposits(eventId, members.map(m => m.id))
+        results.push(`Deposit  : ${members.length}`)
+      }
+    }
+  } else if (options.deposit) {
+    console.warn('⚠️ Deposit membutuhkan event & anggota. Lewati.')
+  }
 
   console.log('\n🎉 Seed complete! Summary:')
-  console.log(`   Categories : ${CATEGORIES.length}`)
-  console.log(`   Members    : ${memberIds.length}`)
-  console.log(`   Event      : 1`)
-  console.log(`   Deposits   : ${memberIds.length}`)
+  results.forEach(r => console.log('   ' + r))
 }

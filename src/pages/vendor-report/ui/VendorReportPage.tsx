@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight, Plus, X, AlertTriangle } from 'lucide-react';
 import { useEvent, useEventCategoryTotals, useEventRates } from '@/entities/event/api/hooks';
 import { updateEventNotes } from '@/entities/event/api/queries';
 import { useVendors, useCreateVendor } from '@/entities/vendor/api/hooks';
@@ -8,8 +8,10 @@ import { getOrCreateDefaultVendors } from '@/entities/vendor/api/queries';
 import type { EventCategoryTotal } from '@/entities/event/model/types';
 import type { Vendor } from '@/entities/vendor/model/types';
 import { formatCurrency } from '@/shared/lib/format';
-import { getDb } from '@/shared/api';
 import { Button } from '@/shared/ui/ui/button';
+import { Input } from '@/shared/ui/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/ui/select';
+import { getDb } from '@/shared/api';
 import { Skeleton } from '@/shared/ui/ui/skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableFooter } from '@/shared/ui/ui/table';
 import { ExportCSVButton } from '@/shared/ui/ExportCSVButton';
@@ -17,6 +19,12 @@ import { exportToCSV } from '@/shared/lib/csv';
 
 interface Props {
   eventId: string;
+}
+
+interface CategorySplit {
+  vendorId: number;
+  weight: number;
+  outboundRate: number;
 }
 
 interface CategoryItem extends EventCategoryTotal {
@@ -28,7 +36,7 @@ interface CategoryItem extends EventCategoryTotal {
 interface VendorGroup {
   vendorId: number;
   vendorName: string;
-  categories: CategoryItem[];
+  splits: { categoryId: string; categoryName: string; unit: string; weight: number; outboundRate: number; totalPayout: number; totalSellPayout: number }[];
   totalWeight: number;
   totalPayout: number;
   totalSellPayout: number;
@@ -87,9 +95,9 @@ function VendorReportPageSkeleton() {
 
 export function VendorReportPage({ eventId }: Props) {
   const [categoryItems, setCategoryItems] = useState<CategoryItem[]>([]);
-  const [vendorMappings, setVendorMappings] = useState<Record<string, number>>({});
+  const [categorySplits, setCategorySplits] = useState<Record<string, CategorySplit[]>>({});
   const [availableVendors, setAvailableVendors] = useState<Vendor[]>([]);
-  const [expandedVendors, setExpandedVendors] = useState<Set<number>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [defaultVendorIds, setDefaultVendorIds] = useState<{ bsm: number; lainnya: number } | null>(null);
   const [newVendorName, setNewVendorName] = useState('');
   const [isAddingVendor, setIsAddingVendor] = useState(false);
@@ -125,15 +133,14 @@ export function VendorReportPage({ eventId }: Props) {
     }
   }, [vendorsData, defaultVendorIds]);
 
-  // 2. Initialize Category Items and Mappings
+  // 2. Initialize Category Items and Splits
   useEffect(() => {
-    async function initializeMappings() {
+    async function initializeSplits() {
       if (!categoryTotals || !defaultVendorIds) return;
 
       const db = await getDb();
-      const cats = await db.select<{ id: string, name: string, unit: string }[]>('SELECT id, name, unit FROM category');
+      const cats = await db.select<{ id: string, name: string, unit: string, sort_order: number }[]>('SELECT id, name, unit, sort_order FROM category ORDER BY sort_order ASC, name ASC');
 
-      // Build outbound rate map from event_rates
       const outboundRateMap: Record<string, number> = {};
       if (eventRates) {
         eventRates.forEach(er => {
@@ -152,34 +159,87 @@ export function VendorReportPage({ eventId }: Props) {
       });
       setCategoryItems(items);
 
-      const mapping: Record<string, number> = {};
+      const splits: Record<string, CategorySplit[]> = {};
 
       if (existingManifests && existingManifests.length > 0) {
         existingManifests.forEach(m => {
           m.items.forEach(item => {
-            mapping[item.category_id] = m.vendor_id;
+            if (!splits[item.category_id]) {
+              splits[item.category_id] = [];
+            }
+            const catTotal = categoryTotals?.find(ct => ct.categoryId === item.category_id);
+            const totalWeight = catTotal?.totalWeight || 0;
+            splits[item.category_id].push({
+              vendorId: m.vendor_id,
+              weight: item.weight > 0 ? item.weight : totalWeight,
+              outboundRate: item.outbound_rate
+            });
           });
         });
       } else {
         items.forEach(item => {
-          if (item.name.toLowerCase().includes('c4') || item.name.toLowerCase().includes('karton') || item.name.toLowerCase().includes('kertas')) {
-            mapping[item.categoryId] = defaultVendorIds.bsm;
-          } else {
-            mapping[item.categoryId] = defaultVendorIds.lainnya;
-          }
+          const isDefaultBsm = item.name.toLowerCase().includes('c4') ||
+                              item.name.toLowerCase().includes('karton') ||
+                              item.name.toLowerCase().includes('kertas');
+          const defaultVendorId = isDefaultBsm ? defaultVendorIds.bsm : defaultVendorIds.lainnya;
+          splits[item.categoryId] = [{
+            vendorId: defaultVendorId,
+            weight: item.totalWeight,
+            outboundRate: item.outboundRate
+          }];
         });
       }
 
-      setVendorMappings(mapping);
+      setCategorySplits(splits);
     }
-    initializeMappings();
+    initializeSplits();
   }, [categoryTotals, existingManifests, defaultVendorIds, eventRates]);
 
-  const handleVendorChange = (categoryId: string, vendorId: number) => {
-    setVendorMappings(prev => ({
-      ...prev,
-      [categoryId]: vendorId
-    }));
+  const handleVendorChange = (categoryId: string, splitIndex: number, vendorId: number) => {
+    setCategorySplits(prev => {
+      const updated = { ...prev };
+      if (!updated[categoryId]) return prev;
+      updated[categoryId] = updated[categoryId].map((s, i) =>
+        i === splitIndex ? { ...s, vendorId } : s
+      );
+      return updated;
+    });
+  };
+
+  const handleSplitWeightChange = (categoryId: string, splitIndex: number, weight: number) => {
+    setCategorySplits(prev => {
+      const updated = { ...prev };
+      if (!updated[categoryId]) return prev;
+      updated[categoryId] = updated[categoryId].map((s, i) =>
+        i === splitIndex ? { ...s, weight } : s
+      );
+      return updated;
+    });
+  };
+
+  const handleAddSplit = (categoryId: string) => {
+    const item = categoryItems.find(i => i.categoryId === categoryId);
+    if (!item) return;
+    setCategorySplits(prev => {
+      const updated = { ...prev };
+      const existing = updated[categoryId] || [];
+      const remainingWeight = item.totalWeight - existing.reduce((sum, s) => sum + s.weight, 0);
+      if (remainingWeight <= 0) return prev;
+      updated[categoryId] = [
+        ...existing,
+        { vendorId: defaultVendorIds?.lainnya || 0, weight: remainingWeight, outboundRate: item.outboundRate }
+      ];
+      return updated;
+    });
+  };
+
+  const handleRemoveSplit = (categoryId: string, splitIndex: number) => {
+    setCategorySplits(prev => {
+      const updated = { ...prev };
+      if (!updated[categoryId] || updated[categoryId].length <= 1) return prev;
+      updated[categoryId] = updated[categoryId].filter((_, i) => i !== splitIndex);
+      return updated;
+    });
   };
 
   const handleQuickAddVendor = async () => {
@@ -207,38 +267,69 @@ export function VendorReportPage({ eventId }: Props) {
     const groups: Record<number, VendorGroup> = {};
     
     categoryItems.forEach(item => {
-      const vendorId = vendorMappings[item.categoryId] || defaultVendorIds?.lainnya || 0;
-      const vendor = availableVendors.find(v => v.id === vendorId) || 
-                     (vendorId === defaultVendorIds?.bsm ? { id: vendorId, name: 'BSM' } : 
-                      vendorId === defaultVendorIds?.lainnya ? { id: vendorId, name: 'Lainnya' } : null);
-      
-      const vendorName = vendor?.name || 'Unknown Vendor';
-      
-      if (!groups[vendorId]) {
-        groups[vendorId] = {
-          vendorId,
-          vendorName,
-          categories: [],
-          totalWeight: 0,
-          totalPayout: 0,
-          totalSellPayout: 0,
-          totalProfit: 0
-        };
-      }
+      const splits = categorySplits[item.categoryId] || [];
+      splits.forEach(split => {
+        const vendorId = split.vendorId;
+        const vendor = availableVendors.find(v => v.id === vendorId) ||
+                       (vendorId === defaultVendorIds?.bsm ? { id: vendorId, name: 'BSM' } :
+                        vendorId === defaultVendorIds?.lainnya ? { id: vendorId, name: 'Lainnya' } : null);
+        const vendorName = vendor?.name || 'Unknown Vendor';
 
-      groups[vendorId].categories.push(item);
-      groups[vendorId].totalWeight += item.totalWeight;
-      groups[vendorId].totalPayout += item.totalPayout;
-      groups[vendorId].totalSellPayout += item.totalSellPayout;
-      groups[vendorId].totalProfit += item.totalSellPayout - item.totalPayout;
+        if (!groups[vendorId]) {
+          groups[vendorId] = {
+            vendorId,
+            vendorName,
+            splits: [],
+            totalWeight: 0,
+            totalPayout: 0,
+            totalSellPayout: 0,
+            totalProfit: 0
+          };
+        }
+
+        const splitPayout = split.weight * (item.totalPayout / item.totalWeight);
+        const splitSellPayout = split.weight * split.outboundRate;
+
+        groups[vendorId].splits.push({
+          categoryId: item.categoryId,
+          categoryName: item.name,
+          unit: item.unit,
+          weight: split.weight,
+          outboundRate: split.outboundRate,
+          totalPayout: splitPayout,
+          totalSellPayout: splitSellPayout
+        });
+        groups[vendorId].totalWeight += split.weight;
+        groups[vendorId].totalPayout += splitPayout;
+        groups[vendorId].totalSellPayout += splitSellPayout;
+        groups[vendorId].totalProfit += splitSellPayout - splitPayout;
+      });
     });
     
     return Object.values(groups).sort((a, b) => b.totalWeight - a.totalWeight);
-  }, [categoryItems, vendorMappings, availableVendors, defaultVendorIds]);
+  }, [categoryItems, categorySplits, availableVendors, defaultVendorIds]);
 
   const isFullyAssigned = useMemo(() => {
-    return categoryItems.length > 0 && categoryItems.every(item => vendorMappings[item.categoryId] !== undefined);
-  }, [categoryItems, vendorMappings]);
+    return categoryItems.length > 0 && categoryItems.every(item => {
+      const splits = categorySplits[item.categoryId];
+      if (!splits || splits.length === 0) return false;
+      const totalSplitWeight = splits.reduce((sum, s) => sum + s.weight, 0);
+      return Math.abs(totalSplitWeight - item.totalWeight) < 0.01;
+    });
+  }, [categoryItems, categorySplits]);
+
+  const splitErrors = useMemo(() => {
+    const errors: string[] = [];
+    categoryItems.forEach(item => {
+      const splits = categorySplits[item.categoryId];
+      if (!splits) return;
+      const totalSplitWeight = splits.reduce((sum, s) => sum + s.weight, 0);
+      if (Math.abs(totalSplitWeight - item.totalWeight) > 0.01) {
+        errors.push(`${item.name}: ${totalSplitWeight.toFixed(2)} / ${item.totalWeight} ${item.unit} (selisih ${Math.abs(totalSplitWeight - item.totalWeight).toFixed(2)})`);
+      }
+    });
+    return errors;
+  }, [categoryItems, categorySplits]);
 
   const grandTotalBuyPayout = categoryItems.reduce((sum, item) => sum + item.totalPayout, 0);
   const grandTotalSellPayout = categoryItems.reduce((sum, item) => sum + item.totalSellPayout, 0);
@@ -264,7 +355,7 @@ export function VendorReportPage({ eventId }: Props) {
     try {
       const assignments = vendorGroups.map(group => ({
         vendorId: group.vendorId,
-        items: group.categories.map(c => ({ category_id: c.categoryId, outbound_rate: c.outboundRate }))
+        items: group.splits.map(s => ({ category_id: s.categoryId, outbound_rate: s.outboundRate, weight: s.weight }))
       }));
 
       await createManifests.mutateAsync({
@@ -283,24 +374,33 @@ export function VendorReportPage({ eventId }: Props) {
   };
 
   const handleExport = () => {
-    const exportData = categoryItems.map(t => ({
-      category: t.name,
-      total_weight: t.totalWeight,
-      unit: t.unit,
-      total_buy_payout: t.totalPayout,
-      total_sell_payout: t.totalSellPayout,
-      vendor: availableVendors.find(v => v.id === vendorMappings[t.categoryId])?.name || 'Unknown'
-    }));
+    const exportData: { category: string; vendor: string; weight: number; unit: string; outbound_rate: number; total_buy_payout: number; total_sell_payout: number }[] = [];
+    categoryItems.forEach(t => {
+      const splits = categorySplits[t.categoryId] || [];
+      if (splits.length === 0) return;
+      splits.forEach(split => {
+        const vendor = availableVendors.find(v => v.id === split.vendorId);
+        exportData.push({
+          category: t.name,
+          vendor: vendor?.name || 'Unknown',
+          weight: split.weight,
+          unit: t.unit,
+          outbound_rate: split.outboundRate,
+          total_buy_payout: t.totalPayout / t.totalWeight * split.weight,
+          total_sell_payout: split.weight * split.outboundRate
+        });
+      });
+    });
     exportToCSV(exportData, 'manifest-report');
   };
 
-  const toggleVendorExpand = (vendorId: number) => {
-    setExpandedVendors(prev => {
+  const toggleCategoryExpand = (categoryId: string) => {
+    setExpandedCategories(prev => {
       const next = new Set(prev);
-      if (next.has(vendorId)) {
-        next.delete(vendorId);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
       } else {
-        next.add(vendorId);
+        next.add(categoryId);
       }
       return next;
     });
@@ -387,94 +487,178 @@ export function VendorReportPage({ eventId }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Vendor</TableHead>
+              <TableHead>Kategori</TableHead>
               <TableHead className="text-right">Total Berat</TableHead>
-              <TableHead className="text-right">Harga Beli (Nasabah)</TableHead>
-              <TableHead className="text-right">Harga Jual (Vendor)</TableHead>
+              <TableHead className="text-right">Harga Beli</TableHead>
+              <TableHead className="text-right">Harga Jual</TableHead>
               <TableHead className="text-right">Profit</TableHead>
-              <TableHead className="print:hidden">Alokasi Kategori</TableHead>
+              <TableHead className="print:hidden">Alokasi Vendor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {vendorGroups.length === 0 ? (
+            {categoryItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
               </TableRow>
             ) : (
-              vendorGroups.map(group => (
-                <Fragment key={group.vendorId}>
-                  <TableRow className="bg-muted/30">
-                    <TableCell className="font-medium">
-                      <button 
-                        onClick={() => toggleVendorExpand(group.vendorId)}
-                        className="flex items-center gap-2 hover:text-primary transition-colors"
-                      >
-                        {expandedVendors.has(group.vendorId) ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                        <Truck className="w-4 h-4 text-muted-foreground" />
-                        {group.vendorName}
-                        <span className="text-muted-foreground text-xs ml-2">({group.categories.length} kategori)</span>
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
-                      {group.totalWeight.toFixed(2)} KG
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(group.totalPayout)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium text-primary">
-                      {formatCurrency(group.totalSellPayout)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium text-green-400">
-                      {formatCurrency(group.totalProfit)}
-                    </TableCell>
-                    <TableCell className="print:hidden"></TableCell>
-                  </TableRow>
-                  
-                  {expandedVendors.has(group.vendorId) && group.categories.map(item => (
-                    <TableRow key={item.categoryId} className="bg-background border-l-2 border-primary/20">
-                      <TableCell className="pl-12 text-muted-foreground">
-                        <div className="flex items-center gap-3">
-                          <FileText className="size-4" />
+              categoryItems.map(item => {
+                const splits = categorySplits[item.categoryId] || [];
+                const totalSplitWeight = splits.reduce((sum, s) => sum + s.weight, 0);
+                const hasError = Math.abs(totalSplitWeight - item.totalWeight) > 0.01;
+                const isExpanded = expandedCategories.has(item.categoryId);
+
+                return (
+                  <Fragment key={item.categoryId}>
+                    <TableRow className={hasError ? "bg-orange-50/50" : "bg-muted/30"}>
+                      <TableCell className="font-medium">
+                        <button
+                          onClick={() => toggleCategoryExpand(item.categoryId)}
+                          className="flex items-center gap-2 hover:text-primary transition-colors"
+                        >
+                          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          <FileText className="w-4 h-4 text-muted-foreground" />
                           {item.name}
-                        </div>
+                          {hasError && (
+                            <span className="text-orange-500 text-xs ml-2 font-normal flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              {totalSplitWeight.toFixed(2)} / {item.totalWeight} {item.unit}
+                            </span>
+                          )}
+                          {splits.length > 1 && !hasError && (
+                            <span className="text-muted-foreground text-xs ml-2">({splits.length} vendor)</span>
+                          )}
+                        </button>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-right tabular-nums font-medium">
                         {item.totalWeight} {item.unit}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-right tabular-nums">
                         {formatCurrency(item.totalPayout)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-primary/70">
+                      <TableCell className="text-right tabular-nums font-medium text-primary">
                         {formatCurrency(item.totalSellPayout)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-green-400">
+                      <TableCell className="text-right tabular-nums font-medium text-green-400">
                         {formatCurrency(item.totalSellPayout - item.totalPayout)}
                       </TableCell>
-                      <TableCell className="print:hidden">
-                        <select
-                          className="w-full bg-background border border-input rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring transition-colors appearance-none"
-                          value={vendorMappings[item.categoryId] ?? ''}
-                          onChange={e => handleVendorChange(item.categoryId, Number(e.target.value))}
-                        >
-                          <option value="" disabled>Pilih Vendor...</option>
-                          {availableVendors.map(v => (
-                            <option key={v.id} value={v.id}>{v.name}</option>
-                          ))}
-                        </select>
-                      </TableCell>
+                      <TableCell className="print:hidden"></TableCell>
                     </TableRow>
-                  ))}
-                </Fragment>
-              ))
+
+                    {isExpanded && splits.map((split, idx) => {
+                      const splitPayout = item.totalPayout / item.totalWeight * split.weight;
+                      const splitSellPayout = split.weight * split.outboundRate;
+                      const vendor = availableVendors.find(v => v.id === split.vendorId) ||
+                                    (split.vendorId === defaultVendorIds?.bsm ? { name: 'BSM' } :
+                                     split.vendorId === defaultVendorIds?.lainnya ? { name: 'Lainnya' } : { name: 'Unknown' });
+
+                      return (
+                        <TableRow key={`${item.categoryId}-${idx}`} className="bg-background border-l-4 border-primary/20">
+                          <TableCell className="pl-12">
+                            <div className="flex items-center gap-3">
+                              <Truck className="size-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">{vendor.name}</span>
+                              <button
+                                onClick={() => handleRemoveSplit(item.categoryId, idx)}
+                                className="ml-2 text-muted-foreground hover:text-destructive transition-colors"
+                                disabled={splits.length <= 1}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="print:hidden">
+                            <Input
+                              type="number"
+                              step={item.unit === 'pc' ? '1' : '0.01'}
+                              min={0}
+                              max={item.totalWeight}
+                              value={split.weight}
+                              onChange={e => handleSplitWeightChange(item.categoryId, idx, parseFloat(e.target.value) || 0)}
+                              className="w-28 text-right tabular-nums h-8"
+                            />
+                            <span className="text-xs text-muted-foreground ml-1">{item.unit}</span>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {formatCurrency(splitPayout)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-primary/70">
+                            {formatCurrency(splitSellPayout)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-green-400">
+                            {formatCurrency(splitSellPayout - splitPayout)}
+                          </TableCell>
+                          <TableCell className="print:hidden">
+                            <Select
+                              value={String(split.vendorId)}
+                              onValueChange={val => handleVendorChange(item.categoryId, idx, parseInt(val))}
+                            >
+                              <SelectTrigger className="w-full h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableVendors.map(v => (
+                                  <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+
+                    {isExpanded && (
+                      <TableRow className="bg-background border-l-4 border-dashed border-muted">
+                        <TableCell colSpan={6} className="pl-12">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddSplit(item.categoryId)}
+                            className="text-muted-foreground hover:text-primary h-7 px-2"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Tambah vendor lain
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })
             )}
           </TableBody>
-          {categoryItems.length > 0 && (
+          {vendorGroups.length > 0 && (
             <TableFooter>
-              <TableRow>
+              <TableRow className="bg-muted/50 font-semibold">
+                <TableCell>Total per Vendor</TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell className="print:hidden"></TableCell>
+              </TableRow>
+              {vendorGroups.map(group => (
+                <TableRow key={group.vendorId} className="border-t border-border">
+                  <TableCell className="pl-4 font-medium">
+                    <Truck className="w-4 h-4 text-muted-foreground inline mr-2" />
+                    {group.vendorName}
+                    <span className="text-muted-foreground text-xs ml-2">({group.splits.length} alokasi)</span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {group.totalWeight.toFixed(2)} KG
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(group.totalPayout)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium text-primary">
+                    {formatCurrency(group.totalSellPayout)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium text-green-400">
+                    {formatCurrency(group.totalProfit)}
+                  </TableCell>
+                  <TableCell className="print:hidden"></TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="border-t-2 border-primary/30 font-bold">
                 <TableCell>Total Keseluruhan</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">
                   {summaryText}
@@ -482,10 +666,10 @@ export function VendorReportPage({ eventId }: Props) {
                 <TableCell className="text-right tabular-nums">
                   {formatCurrency(grandTotalBuyPayout)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-bold text-primary">
+                <TableCell className="text-right tabular-nums text-primary">
                   {formatCurrency(grandTotalSellPayout)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-bold text-green-400">
+                <TableCell className="text-right tabular-nums text-green-400">
                   {formatCurrency(grandTotalSellPayout - grandTotalBuyPayout)}
                 </TableCell>
                 <TableCell className="print:hidden"></TableCell>
@@ -495,10 +679,22 @@ export function VendorReportPage({ eventId }: Props) {
         </Table>
       </div>
 
-      {!isFullyAssigned && categoryItems.length > 0 && (
+      {splitErrors.length > 0 && (
+        <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-xl text-sm flex gap-3 print:hidden">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Alokasi belum lengkap:</p>
+            <ul className="list-disc list-inside mt-1 space-y-0.5">
+              {splitErrors.map((err, i) => <li key={i}>{err}</li>)}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {!isFullyAssigned && splitErrors.length === 0 && categoryItems.length > 0 && (
         <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-xl text-sm flex gap-3 print:hidden">
           <Truck className="w-5 h-5 flex-shrink-0" />
-          <p>Beberapa material belum teralokasi ke vendor. Mohon lengkapi alokasi vendor untuk dapat memproses manifest ini.</p>
+          <p>Beberapa material belum teralokasi ke vendor. Klik baris kategori untuk melihat dan mengubah alokasi.</p>
         </div>
       )}
     </div>

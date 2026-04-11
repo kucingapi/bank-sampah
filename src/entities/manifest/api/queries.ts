@@ -8,6 +8,15 @@ export interface ManifestWithDetails extends VendorManifest {
   items: ManifestItem[];
 }
 
+async function ensureWeightColumn() {
+  const db = await getDb();
+  try {
+    await db.execute('ALTER TABLE manifest_item ADD COLUMN weight REAL NOT NULL DEFAULT 0');
+  } catch {
+    // Column already exists
+  }
+}
+
 export async function listManifests(eventId: string): Promise<ManifestWithDetails[]> {
   const db = await getDb();
   
@@ -21,6 +30,8 @@ export async function listManifests(eventId: string): Promise<ManifestWithDetail
   const vendors = await db.select<Vendor[]>(
     'SELECT * FROM vendor WHERE id IN (' + manifests.map(m => `'${m.vendor_id}'`).join(',') + ')'
   );
+  
+  await ensureWeightColumn();
   
   const items = await db.select<ManifestItem[]>(
     'SELECT * FROM manifest_item WHERE manifest_id IN (' + manifests.map(m => `'${m.id}'`).join(',') + ')'
@@ -36,9 +47,10 @@ export async function listManifests(eventId: string): Promise<ManifestWithDetail
 export async function createManifest(
   eventId: string, 
   vendorId: number, 
-  items: { category_id: string, outbound_rate: number }[]
+  items: { category_id: string, outbound_rate: number, weight: number }[]
 ): Promise<string> {
   const db = await getDb();
+  await ensureWeightColumn();
   const id = generateId();
   
   await db.execute(
@@ -48,8 +60,8 @@ export async function createManifest(
   
   for (const item of items) {
     await db.execute(
-      'INSERT INTO manifest_item (manifest_id, category_id, outbound_rate) VALUES (?, ?, ?)',
-      [id, item.category_id, item.outbound_rate]
+      'INSERT INTO manifest_item (manifest_id, category_id, outbound_rate, weight) VALUES (?, ?, ?, ?)',
+      [id, item.category_id, item.outbound_rate, item.weight]
     );
   }
   
@@ -58,9 +70,10 @@ export async function createManifest(
 
 export async function createManifestsByAssignments(
   eventId: string,
-  assignments: { vendorId: number; items: { category_id: string; outbound_rate: number }[] }[]
+  assignments: { vendorId: number; items: { category_id: string; outbound_rate: number; weight: number }[] }[]
 ): Promise<void> {
   const db = await getDb();
+  await ensureWeightColumn();
   
   for (const assignment of assignments) {
     const id = generateId();
@@ -71,8 +84,8 @@ export async function createManifestsByAssignments(
     
     for (const item of assignment.items) {
       await db.execute(
-        'INSERT INTO manifest_item (manifest_id, category_id, outbound_rate) VALUES (?, ?, ?)',
-        [id, item.category_id, item.outbound_rate]
+        'INSERT INTO manifest_item (manifest_id, category_id, outbound_rate, weight) VALUES (?, ?, ?, ?)',
+        [id, item.category_id, item.outbound_rate, item.weight]
       );
     }
   }

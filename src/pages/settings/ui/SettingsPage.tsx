@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from "react"
+import { cn } from "@/shared/lib/utils"
 import { createClient } from "@libsql/client/web"
 import { toast } from "sonner"
 import { HardDrive, Download, Upload, RotateCcw, AlertTriangle, CloudUpload, CloudDownload, Loader2, XCircle, Database } from "lucide-react"
@@ -9,6 +10,7 @@ import { useBackupTask, type BackupTask, clearTask } from "@/shared/context/back
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Label } from "@/shared/ui/ui/label"
+import { Checkbox } from "@/shared/ui/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/ui/card"
 import { Separator } from "@/shared/ui/ui/separator"
 import { Badge } from "@/shared/ui/ui/badge"
@@ -243,6 +245,10 @@ export function SettingsPage() {
   const [resetting, setResetting] = useState(false)
   const [seedDialogOpen, setSeedDialogOpen] = useState(false)
   const [seeding, setSeeding] = useState(false)
+  const [seedKategori, setSeedKategori] = useState(true)
+  const [seedAnggota, setSeedAnggota] = useState(true)
+  const [seedEvent, setSeedEvent] = useState(true)
+  const [seedDeposit, setSeedDeposit] = useState(true)
 
   const [tursoUrl, setTursoUrl] = useState(() => getTursoConfig().url)
   const [tursoToken, setTursoToken] = useState(() => getTursoConfig().token)
@@ -359,10 +365,10 @@ export function SettingsPage() {
     }
   }, [])
 
-  const handleSeed = useCallback(async () => {
+  const handleSeed = useCallback(async (opts: { kategori: boolean; anggota: boolean; event: boolean; deposit: boolean }) => {
     setSeeding(true)
     try {
-      await seedBankSampah()
+      await seedBankSampah(opts)
       setStats(null)
       toast.success("Data awal berhasil ditambahkan!")
     } catch (err) {
@@ -764,14 +770,73 @@ export function SettingsPage() {
       <AlertDialog open={seedDialogOpen} onOpenChange={setSeedDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Jalankan Seeder?</AlertDialogTitle>
+            <AlertDialogTitle>Jalankan Seeder</AlertDialogTitle>
             <AlertDialogDescription>
-              Database saat ini akan ditimpa dengan data contoh. Data yang sudah ada akan digabung (bukan dihapus). Lanjutkan?
+              Pilih data yang ingin ditambahkan. Data yang sudah ada akan diperbarui, bukan dihapus.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="seed-kategori"
+                checked={seedKategori}
+                onCheckedChange={(v: boolean | 'indeterminate') => setSeedKategori(!!v)}
+              />
+              <div className="grid gap-0.5">
+                <Label htmlFor="seed-kategori" className="text-sm font-medium cursor-pointer">
+                  Kategori
+                </Label>
+                <p className="text-xs text-muted-foreground">45 kategori sampah (p11, p38, c4, karton, dll)</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="seed-anggota"
+                checked={seedAnggota}
+                onCheckedChange={(v: boolean | 'indeterminate') => setSeedAnggota(!!v)}
+              />
+              <div className="grid gap-0.5">
+                <Label htmlFor="seed-anggota" className="text-sm font-medium cursor-pointer">
+                  Anggota
+                </Label>
+                <p className="text-xs text-muted-foreground">120 anggota contoh dengan nama dan alamat</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="seed-event"
+                checked={seedEvent}
+                onCheckedChange={(v: boolean | 'indeterminate') => setSeedEvent(!!v)}
+                disabled={!seedAnggota}
+              />
+              <div className="grid gap-0.5">
+                <Label htmlFor="seed-event" className={cn("text-sm font-medium cursor-pointer", !seedAnggota && "opacity-50")}>
+                  Event (Hari Ini)
+                </Label>
+                <p className="text-xs text-muted-foreground">Event baru + rate untuk setiap kategori</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="seed-deposit"
+                checked={seedDeposit}
+                onCheckedChange={(v: boolean | 'indeterminate') => setSeedDeposit(!!v)}
+                disabled={!seedEvent || !seedAnggota}
+              />
+              <div className="grid gap-0.5">
+                <Label htmlFor="seed-deposit" className={cn("text-sm font-medium cursor-pointer", (!seedEvent || !seedAnggota) && "opacity-50")}>
+                  Deposit
+                </Label>
+                <p className="text-xs text-muted-foreground">Data setoran acak untuk setiap anggota</p>
+              </div>
+            </div>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSeed} disabled={seeding}>
+            <AlertDialogAction
+              onClick={() => handleSeed({ kategori: seedKategori, anggota: seedAnggota, event: seedEvent, deposit: seedDeposit })}
+              disabled={seeding || (!seedKategori && !seedAnggota && !seedEvent && !seedDeposit)}
+            >
               {seeding ? "Menjalankan..." : "Ya, Jalankan"}
             </AlertDialogAction>
           </AlertDialogFooter>

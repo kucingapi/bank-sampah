@@ -1,6 +1,6 @@
-use tauri_plugin_sql::{Migration, MigrationKind};
 use std::env;
 use std::fs;
+use tauri_plugin_sql::{Migration, MigrationKind};
 
 fn db_path() -> String {
     // Try multiple possible locations in order of likelihood
@@ -16,14 +16,25 @@ fn db_path() -> String {
         // Release mode: next to the executable
         exe_dir.join("bank_sampah.db"),
         // Also try parent of exe dir
-        exe_dir.parent().map(|p| p.join("bank_sampah.db")).unwrap_or_default(),
+        exe_dir
+            .parent()
+            .map(|p| p.join("bank_sampah.db"))
+            .unwrap_or_default(),
         // Fallback to project root
-        cwd.parent().and_then(|p| p.parent().map(|pp| pp.join("src-tauri").join("bank_sampah.db"))).unwrap_or_default(),
+        cwd.parent()
+            .and_then(|p| {
+                p.parent()
+                    .map(|pp| pp.join("src-tauri").join("bank_sampah.db"))
+            })
+            .unwrap_or_default(),
     ];
 
     // Add APPDATA if available (Windows)
     if let Ok(appdata) = env::var("APPDATA") {
-        candidates.push(std::path::PathBuf::from(format!("{}\\bank_sampah.db", appdata)));
+        candidates.push(std::path::PathBuf::from(format!(
+            "{}\\bank_sampah.db",
+            appdata
+        )));
     }
 
     for path in &candidates {
@@ -33,7 +44,10 @@ fn db_path() -> String {
     }
 
     // Default to first candidate
-    candidates.first().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| "bank_sampah.db".to_string())
+    candidates
+        .first()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "bank_sampah.db".to_string())
 }
 
 #[tauri::command]
@@ -71,7 +85,8 @@ pub fn run() {
               unit TEXT NOT NULL,
               default_rate REAL NOT NULL,
               status TEXT NOT NULL DEFAULT 'active',
-              archived INTEGER NOT NULL DEFAULT 0
+              archived INTEGER NOT NULL DEFAULT 0,
+              sort_order INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS vendor (
@@ -127,6 +142,7 @@ pub fn run() {
               manifest_id TEXT NOT NULL,
               category_id TEXT NOT NULL,
               outbound_rate REAL NOT NULL,
+              weight REAL NOT NULL DEFAULT 0,
               PRIMARY KEY (manifest_id, category_id),
               FOREIGN KEY (manifest_id) REFERENCES vendor_manifest(id),
               FOREIGN KEY (category_id) REFERENCES category(id)
@@ -145,6 +161,7 @@ pub fn run() {
             INSERT OR IGNORE INTO vendor (name) VALUES ('Lainnya');
 
             INSERT OR IGNORE INTO category (id, name, unit, default_rate, status, archived) VALUES ('c4', 'C4', 'kg', 0, 'active', 0);
+            INSERT OR IGNORE INTO category (id, name, unit, default_rate, status, archived) VALUES ('p38', 'P38', 'kg', 1500, 'active', 0);
           ",
             kind: MigrationKind::Up,
         },

@@ -8,4 +8,5 @@ export interface ManifestItem {
   manifest_id: string;
   category_id: string;
   outbound_rate: number;
+  weight: number;
 }

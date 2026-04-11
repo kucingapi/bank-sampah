@@ -20,7 +20,7 @@ export function useCreateManifest() {
     }: {
       eventId: string;
       vendorId: number;
-      items: { category_id: string; outbound_rate: number }[];
+      items: { category_id: string; outbound_rate: number; weight: number }[];
     }) => createManifest(eventId, vendorId, items),
     onSuccess: (_, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.manifests.byEvent(eventId) });
@@ -46,7 +46,7 @@ export function useCreateManifestsByAssignments() {
       assignments,
     }: {
       eventId: string;
-      assignments: { vendorId: number; items: { category_id: string; outbound_rate: number }[] }[];
+      assignments: { vendorId: number; items: { category_id: string; outbound_rate: number; weight: number }[] }[];
     }) => createManifestsByAssignments(eventId, assignments),
     onSuccess: (_, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.manifests.byEvent(eventId) });
