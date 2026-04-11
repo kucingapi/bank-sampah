@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/api/query-keys';
-import type { SemesterLabel } from '@/shared/lib/semester';
+import { getSemesterDateRange, type SemesterLabel } from '@/shared/lib/semester';
 import {
   getMemberPaymentPivot,
   getMemberPaymentDetails,
@@ -69,14 +69,7 @@ export function useSemesterEvents(semesterLabel: SemesterLabel) {
     queryKey: ['events', 'semester', semesterLabel],
     queryFn: async () => {
       if (!semesterLabel) return [];
-      const { startDate, endDate } = (() => {
-        const [yearStr, sem] = semesterLabel.split('-');
-        const year = parseInt(yearStr, 10);
-        if (sem === 'S1') {
-          return { startDate: `${year}-01-01`, endDate: `${year}-06-30` };
-        }
-        return { startDate: `${year}-07-01`, endDate: `${year}-12-31` };
-      })();
+      const { startDate, endDate } = getSemesterDateRange(semesterLabel);
       return getEventsInRange(startDate, endDate);
     },
     enabled: !!semesterLabel,

@@ -1,12 +1,13 @@
 import { useState } from "react"
-import { Search, Plus } from "lucide-react"
-import { useMembers, useUpdateMember } from "@/entities/member/api/hooks"
+import { Search, Plus, Trash2 } from "lucide-react"
+import { useMembers, useUpdateMember, useDeleteMember } from "@/entities/member/api/hooks"
 import type { Member } from "@/entities/member/model/types"
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/shared/ui/ui/table"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
 import { AddMemberModal } from "@/features/add-member/ui/AddMemberModal"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/ui/ui/alert-dialog"
 
 function TableSkeleton() {
   return (
@@ -34,12 +35,15 @@ function TableSkeleton() {
 export function MemberDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [memberToDelete, setMemberToDelete] = useState<{id: number, name: string} | null>(null)
 
   const { data: members = [], isLoading } = useMembers({
     search: searchQuery,
   })
 
   const updateMember = useUpdateMember()
+  const deleteMemberMutation = useDeleteMember()
 
   const handleUpdate = async (id: number, field: keyof Pick<Member, 'name' | 'address' | 'phone'>, value: string) => {
     try {
@@ -92,12 +96,13 @@ export function MemberDirectoryPage() {
                   <TableHead>Nama Lengkap</TableHead>
                   <TableHead>No. Telepon</TableHead>
                   <TableHead>Alamat</TableHead>
+                  <TableHead className="w-16">Hapus</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {members.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
                       Belum ada anggota.
                     </TableCell>
                   </TableRow>
@@ -137,6 +142,16 @@ export function MemberDirectoryPage() {
                           onBlur={(e) => handleUpdate(m.id, "address", e.target.value)}
                         />
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { setMemberToDelete({ id: m.id, name: m.name }); setDeleteDialogOpen(true); }}
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -151,6 +166,35 @@ export function MemberDirectoryPage() {
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {}}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Anggota</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hapus <strong>{memberToDelete?.name}</strong>? Semua data deposit dan tabungan terkait juga akan dihapus. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (memberToDelete) {
+                  try {
+                    await deleteMemberMutation.mutateAsync(memberToDelete.id)
+                  } catch (err) {
+                    console.error(err)
+                  }
+                }
+                setMemberToDelete(null)
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

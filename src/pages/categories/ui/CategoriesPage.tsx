@@ -56,9 +56,15 @@ function CategoriesPageSkeleton() {
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-10 w-full" />
             </div>
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-10 w-full" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-10 w-full" />
+              </div>
             </div>
             <Skeleton className="h-10 w-full" />
           </CardContent>
@@ -76,7 +82,8 @@ function CategoriesPageSkeleton() {
                 <TableRow>
                   <TableHead><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead><Skeleton className="h-4 w-12" /></TableHead>
-                  <TableHead><Skeleton className="h-4 w-28" /></TableHead>
+                  <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+                  <TableHead><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead className="text-center w-20"><Skeleton className="h-4 w-16 mx-auto" /></TableHead>
                   <TableHead className="w-12"><Skeleton className="h-4 w-4" /></TableHead>
                 </TableRow>
@@ -86,7 +93,8 @@ function CategoriesPageSkeleton() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                     <TableCell><Skeleton className="h-10 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-10 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-10 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
@@ -104,6 +112,8 @@ export function CategoriesPage() {
   const [newName, setNewName] = useState("")
   const [newUnit, setNewUnit] = useState<"kg" | "pc">("kg")
   const [newRate, setNewRate] = useState("")
+  const [newBuyRate, setNewBuyRate] = useState("")
+  const [buyRateManuallySet, setBuyRateManuallySet] = useState(false)
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
@@ -128,6 +138,7 @@ export function CategoriesPage() {
       name: cat.name,
       unit: cat.unit,
       default_rate: cat.default_rate,
+      buy_rate: cat.buy_rate,
       archived: cat.archived ? 'yes' : 'no'
     }))
   }, [categories])
@@ -154,11 +165,14 @@ export function CategoriesPage() {
         id: safeIdPreview,
         name: newName.trim(),
         unit: newUnit,
-        defaultRate: parseFloat(newRate)
+        defaultRate: parseFloat(newRate),
+        buyRate: parseFloat(newBuyRate) || Math.floor(parseFloat(newRate) * 0.90)
       })
       toast.success(`"${newName.trim()}" berhasil ditambahkan.`)
       setNewName("")
       setNewRate("")
+      setNewBuyRate("")
+      setBuyRateManuallySet(false)
       setNewUnit("kg")
     } catch (err) {
       console.error("Failed to create", err)
@@ -263,18 +277,42 @@ export function CategoriesPage() {
               </Tabs>
             </div>
 
-            <div>
-              <label className="micro-label text-muted-foreground mb-2 block">
-                Harga Dasar Jual ke Vendor (Rp)
-              </label>
-              <Input
-                type="number"
-                placeholder="0"
-                min="0"
-                className="tabular-nums"
-                value={newRate}
-                onChange={(e) => setNewRate(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="micro-label text-muted-foreground mb-2 block">
+                  Harga Dasar Beli ke Nasabah (Rp)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  min="0"
+                  className="tabular-nums"
+                  value={newBuyRate}
+                  onChange={(e) => {
+                    setNewBuyRate(e.target.value)
+                    setBuyRateManuallySet(true)
+                  }}
+                />
+              </div>
+              <div>
+                <label className="micro-label text-muted-foreground mb-2 block">
+                  Harga Dasar Jual ke Vendor (Rp)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  min="0"
+                  className="tabular-nums"
+                  value={newRate}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setNewRate(val)
+                    if (!buyRateManuallySet && val) {
+                      setNewBuyRate(String(Math.floor(parseFloat(val) * 0.90)))
+                    }
+                  }}
+                />
+              </div>
             </div>
 
             <Button
@@ -304,7 +342,8 @@ export function CategoriesPage() {
                 <TableRow>
                   <TableHead>Material</TableHead>
                   <TableHead>Satuan</TableHead>
-                  <TableHead>Harga Dasar Jual ke Vendor (Rp)</TableHead>
+                  <TableHead>Harga Beli</TableHead>
+                  <TableHead>Harga Jual</TableHead>
                   <TableHead className="text-center w-20">Sesi Baru</TableHead>
                   <TableHead className="text-center w-12"></TableHead>
                 </TableRow>
@@ -312,7 +351,7 @@ export function CategoriesPage() {
               <TableBody>
                 {visibleCategories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
                       Belum ada kategori terdaftar.
                     </TableCell>
                   </TableRow>
@@ -350,6 +389,27 @@ export function CategoriesPage() {
                             </TabsTrigger>
                           </TabsList>
                         </Tabs>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="tabular-nums"
+                          defaultValue={cat.buy_rate}
+                          onBlur={(e) => {
+                            const newValue = parseFloat(e.target.value) || 0
+                            if (newValue !== cat.buy_rate) {
+                              handleUpdate(cat.id, "buy_rate", newValue)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const newValue = parseFloat((e.target as HTMLInputElement).value) || 0
+                              if (newValue !== cat.buy_rate) {
+                                handleUpdate(cat.id, "buy_rate", newValue)
+                              }
+                            }
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <Input

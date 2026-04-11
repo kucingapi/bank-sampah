@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from "react"
-import { Search, Download, Eye, PiggyBank } from "lucide-react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
+import { Search, Download, Eye, PiggyBank, ChevronDown, ChevronUp, Printer } from "lucide-react"
 import {
   useMemberSemesterPivot,
   useSemesterSummary,
@@ -11,23 +11,20 @@ import {
   useUpsertSemesterSavings,
 } from "@/entities/semester-savings"
 import {
-  getSemesterOptions,
   getDefaultSemester,
   getPreviousSemester,
+  getNextSemester,
+  getSemesterDateRange,
+  formatSemesterLabel,
   type SemesterLabel,
+  type SemesterOption,
 } from "@/shared/lib/semester"
+import { cn } from "@/shared/lib/utils"
 import { formatCurrency } from "@/shared/lib/format"
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/shared/ui/ui/table"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/ui/select"
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/shared/ui/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -145,14 +142,7 @@ function DetailDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { startDate, endDate } = useMemo(() => {
-    const [yearStr, sem] = semesterLabel.split('-')
-    const year = parseInt(yearStr, 10)
-    if (sem === 'S1') {
-      return { startDate: `${year}-01-01`, endDate: `${year}-06-30` }
-    }
-    return { startDate: `${year}-07-01`, endDate: `${year}-12-31` }
-  }, [semesterLabel])
+  const { startDate, endDate } = useMemo(() => getSemesterDateRange(semesterLabel), [semesterLabel])
 
   const { data: details = [], isLoading } = useMemberPaymentDetails(memberId, {
     eventDateStart: startDate,
@@ -236,8 +226,67 @@ export function MemberPaymentPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [semester, setSemester] = useState<SemesterLabel>(getDefaultSemester)
   const [detailMember, setDetailMember] = useState<{ id: number; name: string } | null>(null)
+  const [isSemesterOpen, setIsSemesterOpen] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
 
-  const semesterOptions = useMemo(() => getSemesterOptions(), [])
+  const [semesterWindowStart, setSemesterWindowStart] = useState(() => {
+    let s = getDefaultSemester()
+    for (let i = 0; i < 5; i++) s = getPreviousSemester(s)
+    return s
+  })
+  const [semesterWindowEnd, setSemesterWindowEnd] = useState(() => {
+    let s = getDefaultSemester()
+    for (let i = 0; i < 5; i++) s = getNextSemester(s)
+    return s
+  })
+
+  const visibleSemesterOptions = useMemo(() => {
+    const options: SemesterOption[] = []
+    let current = semesterWindowStart
+    for (;;) {
+      const { startDate, endDate } = getSemesterDateRange(current)
+      const [yearStr, sem] = current.split('-')
+      const year = parseInt(yearStr, 10)
+      options.push({
+        label: formatSemesterLabel(current),
+        value: current,
+        year,
+        semester: sem === 'S1' ? 1 : 2,
+        startDate,
+        endDate,
+      })
+      if (current === semesterWindowEnd) break
+      current = getNextSemester(current)
+    }
+    return options
+  }, [semesterWindowStart, semesterWindowEnd])
+
+  const loadMorePrev = useCallback(() => {
+    setSemesterWindowStart(prev => {
+      let current = prev
+      for (let i = 0; i < 3; i++) current = getPreviousSemester(current)
+      return current
+    })
+  }, [])
+
+  const loadMoreNext = useCallback(() => {
+    setSemesterWindowEnd(prev => {
+      let current = prev
+      for (let i = 0; i < 3; i++) current = getNextSemester(current)
+      return current
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isSemesterOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.semester-dropdown-container')) {
+        setIsSemesterOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [isSemesterOpen])
 
   const { data: pivotData = [], isLoading: pivotLoading, error: pivotError } = useMemberSemesterPivot(semester)
   const { data: events = [], isLoading: eventsLoading, error: eventsError } = useSemesterEvents(semester)
@@ -299,7 +348,27 @@ export function MemberPaymentPage() {
 
   return (
     <div className="p-12 mx-auto flex flex-col gap-8 animate-in fade-in duration-500 ease-editorial">
-      <header className="flex items-end justify-between border-b border-border pb-6">
+      <style>{`
+  @media print {
+    @page { size: landscape; margin: 10mm; }
+    body * { visibility: hidden; }
+    .print-area, .print-area * { visibility: visible; }
+    .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+    .print\\:hidden { display: none !important; }
+    [class*="sticky-no"],
+    [class*="sticky-nama"] {
+      position: static !important;
+      left: auto !important;
+      z-index: auto !important;
+    }
+    .pivot-table th,
+    .pivot-table td {
+      padding: 4px 8px !important;
+      font-size: 10px !important;
+    }
+  }
+`}</style>
+      <header className="flex items-end justify-between border-b border-border pb-6 print:hidden">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">
             Pembayaran <span className="text-muted-foreground/60">Anggota</span>
@@ -318,6 +387,13 @@ export function MemberPaymentPage() {
             <Download className="size-4 mr-2" />
             Export
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.print()}
+          >
+            <Printer className="size-4 mr-2" />
+            Cetak
+          </Button>
         </div>
       </header>
 
@@ -332,7 +408,7 @@ export function MemberPaymentPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-6 p-4 bg-muted border border-border rounded-lg">
+      <div className="flex items-center gap-6 p-4 bg-muted border border-border rounded-lg print:hidden">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -343,21 +419,55 @@ export function MemberPaymentPage() {
           />
         </div>
 
-        <Select value={semester} onValueChange={(v) => setSemester(v as SemesterLabel)}>
-          <SelectTrigger className="w-72">
-            <SelectValue placeholder="Pilih semester..." />
-          </SelectTrigger>
-          <SelectContent>
-            {semesterOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative semester-dropdown-container">
+          <Button
+            variant="outline"
+            className="w-72 justify-between"
+            onClick={() => setIsSemesterOpen(!isSemesterOpen)}
+          >
+            {formatSemesterLabel(semester)}
+            <ChevronDown className="size-4 opacity-50" />
+          </Button>
+          {isSemesterOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 border border-border rounded-md bg-popover shadow-md">
+              <button
+                className="w-full flex items-center justify-center py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors border-b border-border"
+                onClick={loadMorePrev}
+              >
+                <ChevronUp className="size-4" />
+              </button>
+              <div
+                ref={listRef}
+                className="overflow-y-auto max-h-56"
+              >
+                {visibleSemesterOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors",
+                      opt.value === semester && "bg-primary/10 text-primary font-medium"
+                    )}
+                    onClick={() => {
+                      setSemester(opt.value as SemesterLabel)
+                      setIsSemesterOpen(false)
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="w-full flex items-center justify-center py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors border-t border-border"
+                onClick={loadMoreNext}
+              >
+                <ChevronDown className="size-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div>
+      <div className="print-area">
         {isLoading ? (
           <PivotTableSkeleton eventCount={events.length || 4} />
         ) : (
@@ -382,10 +492,10 @@ export function MemberPaymentPage() {
                   <TableHead className="text-right font-semibold whitespace-nowrap w-36">
                     Jumlah
                   </TableHead>
-                  <TableHead className="whitespace-nowrap w-24">
+                  <TableHead className="whitespace-nowrap w-24 print:hidden">
                     Simpan
                   </TableHead>
-                  <TableHead className="w-20"></TableHead>
+                  <TableHead className="w-20 print:hidden"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -434,7 +544,7 @@ export function MemberPaymentPage() {
                         <TableCell className="text-right tabular-nums font-semibold text-green-400">
                           {formatCurrency(total)}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center print:hidden">
                           {row.isSaved ? (
                             <button
                               onClick={() =>
@@ -458,7 +568,7 @@ export function MemberPaymentPage() {
                             </button>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="print:hidden">
                           <Button
                             variant="ghost"
                             size="sm"

@@ -339,7 +339,7 @@ export function EventDetailsPage({ eventId }: Props) {
 
   const handleSellRateChange = (catId: string, value: string) => {
     const num = parseFloat(value) || 0
-    const buyRate = Math.round(num * 0.90) // 10% below sell
+    const buyRate = Math.floor(num * 0.90)
     setLocalRates(prev => ({
       ...prev,
       [catId]: { ...prev[catId], sellRate: num, buyRate },

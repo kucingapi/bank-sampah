@@ -9,29 +9,52 @@ interface CategorySeed {
 }
 
 const CATEGORIES: CategorySeed[] = [
-  { id: 'c1', name: 'Kardus', unit: 'kg', default_rate: 2000 },
-  { id: 'c2', name: 'Plastik', unit: 'kg', default_rate: 3000 },
-  { id: 'c3', name: 'Kaca', unit: 'kg', default_rate: 1500 },
-  { id: 'c4', name: 'Logam', unit: 'kg', default_rate: 5000 },
-  { id: 'c5', name: 'Kaleng', unit: 'kg', default_rate: 4000 },
-  { id: 'c6', name: 'Kertas HVS', unit: 'kg', default_rate: 2500 },
-  { id: 'c7', name: 'Botol Plastik', unit: 'kg', default_rate: 3500 },
-  { id: 'c8', name: 'Ember', unit: 'kg', default_rate: 2000 },
-  { id: 'c9', name: 'Gelas Plastik', unit: 'kg', default_rate: 1500 },
-  { id: 'c10', name: 'Jerigen', unit: 'kg', default_rate: 2500 },
-  { id: 'c11', name: 'Tembaga', unit: 'kg', default_rate: 45000 },
-  { id: 'c12', name: 'Aluminium', unit: 'kg', default_rate: 25000 },
-  { id: 'c13', name: 'Besi', unit: 'kg', default_rate: 4000 },
-  { id: 'c14', name: 'Kabel', unit: 'kg', default_rate: 8000 },
-  { id: 'c15', name: 'Karton', unit: 'kg', default_rate: 1800 },
-  { id: 'c16', name: 'Karung', unit: 'pc', default_rate: 5000 },
-  { id: 'c17', name: 'Ban Bekas', unit: 'pc', default_rate: 10000 },
-  { id: 'c18', name: 'Aki', unit: 'pc', default_rate: 30000 },
-  { id: 'c19', name: 'Elektronik', unit: 'kg', default_rate: 6000 },
-  { id: 'c20', name: 'Organik', unit: 'kg', default_rate: 500 },
+  { id: 'p11', name: 'p11', unit: 'kg', default_rate: 2000 },
+  { id: 'p12', name: 'p12', unit: 'kg', default_rate: 2500 },
+  { id: 'p14', name: 'p14', unit: 'kg', default_rate: 3000 },
+  { id: 'p17', name: 'p17', unit: 'kg', default_rate: 3500 },
+  { id: 'p20', name: 'p20', unit: 'kg', default_rate: 2000 },
+  { id: 'p21', name: 'p21', unit: 'kg', default_rate: 4000 },
+  { id: 'p22', name: 'p22', unit: 'kg', default_rate: 5000 },
+  { id: 'p26', name: 'p26', unit: 'kg', default_rate: 2500 },
+  { id: 'p31', name: 'p31', unit: 'kg', default_rate: 3000 },
+  { id: 'p32', name: 'p32', unit: 'kg', default_rate: 3500 },
+  { id: 'p34', name: 'p34', unit: 'kg', default_rate: 4000 },
+  { id: 'p37', name: 'p37', unit: 'kg', default_rate: 2000 },
+  { id: 'p38', name: 'p38', unit: 'kg', default_rate: 1500 },
+  { id: 'c4', name: 'c4', unit: 'kg', default_rate: 1800 },
+  { id: 's2', name: 's2', unit: 'kg', default_rate: 3000 },
+  { id: 's1', name: 's1', unit: 'kg', default_rate: 2500 },
+  { id: 't1', name: 't1', unit: 'kg', default_rate: 45000 },
+  { id: 'k10', name: 'k10', unit: 'kg', default_rate: 8000 },
+  { id: 'a3', name: 'a3', unit: 'kg', default_rate: 25000 },
+  { id: 'c1', name: 'c1', unit: 'kg', default_rate: 2000 },
+  { id: 'b8', name: 'b8', unit: 'kg', default_rate: 2000 },
+  { id: 'l1', name: 'l1', unit: 'kg', default_rate: 4000 },
+  { id: 'p45', name: 'p45', unit: 'kg', default_rate: 5000 },
+  { id: 'p46', name: 'p46', unit: 'kg', default_rate: 6000 },
+  { id: 'p35', name: 'p35', unit: 'kg', default_rate: 1500 },
+  { id: 'k1', name: 'k1', unit: 'kg', default_rate: 2500 },
+  { id: 'k2', name: 'k2', unit: 'kg', default_rate: 2000 },
+  { id: 'k3', name: 'k3', unit: 'kg', default_rate: 3000 },
+  { id: 'k4', name: 'k4', unit: 'kg', default_rate: 4000 },
+  { id: 'k5', name: 'k5', unit: 'kg', default_rate: 5000 },
+  { id: 'k6', name: 'k6', unit: 'kg', default_rate: 6000 },
+  { id: 'k7', name: 'k7', unit: 'kg', default_rate: 7000 },
+  { id: 'k9', name: 'k9', unit: 'kg', default_rate: 1500 },
+  { id: 'mika', name: 'mika', unit: 'kg', default_rate: 10000 },
+  { id: 'c2', name: 'c2', unit: 'kg', default_rate: 3000 },
+  { id: 'p5', name: 'p5', unit: 'kg', default_rate: 3500 },
+  { id: 'p25', name: 'p25', unit: 'kg', default_rate: 2000 },
+  { id: 'p7', name: 'p7', unit: 'kg', default_rate: 4000 },
+  { id: 'p8', name: 'p8', unit: 'kg', default_rate: 5000 },
+  { id: 'p9', name: 'p9', unit: 'kg', default_rate: 1500 },
+  { id: 'k8', name: 'k8', unit: 'kg', default_rate: 8000 },
+  { id: 'b9', name: 'b9', unit: 'kg', default_rate: 3000 },
+  { id: 'b10', name: 'b10', unit: 'kg', default_rate: 4000 },
+  { id: 'b11', name: 'b11', unit: 'kg', default_rate: 5000 },
 ]
 
-// Real member data: [name, address]
 const REAL_MEMBERS: [string, string][] = [
   ['IBU HJ.YURLI', 'MULIA IX/12'],
   ['IBU LINAWATI', 'INDAH V/100'],
@@ -161,20 +184,20 @@ function seededRandom(seed: number): () => number {
   }
 }
 
-export async function seedBankSampah() {
+export async function seedCategories() {
   const db = await getDb()
-  const rand = seededRandom(42)
-
-  // ── 1. Insert 20 categories ──
   for (const cat of CATEGORIES) {
     await db.execute(
-      'INSERT OR REPLACE INTO category (id, name, unit, default_rate, status, archived) VALUES (?, ?, ?, ?, ?, ?)',
-      [cat.id, cat.name, cat.unit, cat.default_rate, 'active', cat.archived ? 1 : 0]
+      'INSERT OR REPLACE INTO category (id, name, unit, default_rate, buy_rate, status, archived) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [cat.id, cat.name, cat.unit, cat.default_rate, Math.floor(cat.default_rate * 0.90), 'active', cat.archived ? 1 : 0]
     )
   }
   console.log(`✅ ${CATEGORIES.length} categories seeded`)
+}
 
-  // ── 2. Insert real members ──
+export async function seedMembers(): Promise<number[]> {
+  const db = await getDb()
+  const rand = seededRandom(42)
   const memberIds: number[] = []
   const joinDate = '2025-01-01'
   for (const [name, address] of REAL_MEMBERS) {
@@ -186,8 +209,11 @@ export async function seedBankSampah() {
     if (result.lastInsertId) memberIds.push(Number(result.lastInsertId))
   }
   console.log(`✅ ${memberIds.length} members seeded`)
+  return memberIds
+}
 
-  // ── 3. Create 1 event on today's date ──
+export async function seedEvents(): Promise<string> {
+  const db = await getDb()
   const today = new Date()
   const dateStr = today.toISOString().split('T')[0]
   const eventId = `evt-${dateStr}`
@@ -197,9 +223,8 @@ export async function seedBankSampah() {
   )
   console.log(`✅ Event created: ${eventId}`)
 
-  // ── 4. Create event_rate for all 20 categories ──
   for (const cat of CATEGORIES) {
-    const activeRate = cat.default_rate * 0.90
+    const activeRate = Math.floor(cat.default_rate * 0.90)
     const outboundRate = cat.default_rate
     await db.execute(
       'INSERT OR REPLACE INTO event_rate (event_id, category_id, active_rate, outbound_rate, is_active) VALUES (?, ?, ?, ?, ?)',
@@ -208,27 +233,30 @@ export async function seedBankSampah() {
   }
   console.log(`✅ ${CATEGORIES.length} event_rates seeded`)
 
-  // ── 5. Create deposits for all members ──
+  return eventId
+}
+
+export async function seedDeposits(eventId: string, memberIds: number[]) {
+  const db = await getDb()
+  const rand = seededRandom(99)
   const catIds = CATEGORIES.map(c => c.id)
   let depositCount = 0
 
   for (const memberId of memberIds) {
-    // Each member deposits 1-5 random categories
     const numCategories = Math.floor(rand() * 5) + 1
     const shuffled = [...catIds].sort(() => rand() - 0.5)
     const selectedCats = shuffled.slice(0, numCategories)
 
     let totalPayout = 0
     const depositId = `dep-${eventId}-${memberId}`
-
-    // Create deposit
+    const dateStr = eventId.replace('evt-', '')
     const time = `${dateStr}T${String(7 + Math.floor(rand() * 8)).padStart(2, '0')}:${String(Math.floor(rand() * 60)).padStart(2, '0')}:00`
+
     await db.execute(
       'INSERT OR REPLACE INTO deposit (id, event_id, member_id, time, total_payout) VALUES (?, ?, ?, ?, ?)',
-      [depositId, eventId, memberId, time, 0] // temporary 0, will update after items
+      [depositId, eventId, memberId, time, 0]
     )
 
-    // Create deposit items
     for (const catId of selectedCats) {
       const cat = CATEGORIES.find(c => c.id === catId)!
       let weight: number
@@ -237,7 +265,7 @@ export async function seedBankSampah() {
       } else {
         weight = parseFloat((rand() * 15 + 0.5).toFixed(2))
       }
-      const rate = cat.default_rate * 0.90
+      const rate = Math.floor(cat.default_rate * 0.90)
       totalPayout += weight * rate
 
       await db.execute(
@@ -246,7 +274,6 @@ export async function seedBankSampah() {
       )
     }
 
-    // Update total_payout
     await db.execute(
       'UPDATE deposit SET total_payout = ? WHERE id = ?',
       [parseFloat(totalPayout.toFixed(2)), depositId]
@@ -255,10 +282,17 @@ export async function seedBankSampah() {
     depositCount++
   }
   console.log(`✅ ${depositCount} deposits seeded`)
+}
+
+export async function seedBankSampah() {
+  await seedCategories()
+  const memberIds = await seedMembers()
+  const eventId = await seedEvents()
+  await seedDeposits(eventId, memberIds)
 
   console.log('\n🎉 Seed complete! Summary:')
   console.log(`   Categories : ${CATEGORIES.length}`)
   console.log(`   Members    : ${memberIds.length}`)
-  console.log(`   Event      : 1 (${dateStr})`)
-  console.log(`   Deposits   : ${depositCount}`)
+  console.log(`   Event      : 1`)
+  console.log(`   Deposits   : ${memberIds.length}`)
 }

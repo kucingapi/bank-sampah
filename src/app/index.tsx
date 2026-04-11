@@ -15,19 +15,10 @@ import { MemberPaymentPage } from '@/pages/member-payment';
 import { CategoriesPage } from '@/pages/categories';
 import { VendorsPage } from '@/pages/vendors';
 import { SettingsPage } from '@/pages/settings';
-import { autoSeedIfEmpty } from '@/shared/lib/auto-seed';
-
-
-
 export function App() {
   const [activeView, setActiveView] = useState('overview');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [activeDepositId, setActiveDepositId] = useState<string | null>(null);
-
-  // Auto-seed on first install if database is empty
-  useEffect(() => {
-    autoSeedIfEmpty();
-  }, []);
 
   useEffect(() => {
     const handleNav = (e: CustomEvent) => {

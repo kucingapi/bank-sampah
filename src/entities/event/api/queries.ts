@@ -18,8 +18,8 @@ async function ensureOutboundRateColumn() {
       'SELECT event_id, category_id, active_rate FROM event_rate'
     );
     for (const row of rows) {
-      const sellRate = Math.round(row.active_rate * 1.10);
-      const buyRate = Math.round(sellRate * 0.90);
+      const sellRate = Math.floor(row.active_rate * 1.10);
+      const buyRate = Math.floor(sellRate * 0.90);
       await db.execute(
         'UPDATE event_rate SET active_rate = $1, outbound_rate = $2 WHERE event_id = $3 AND category_id = $4',
         [buyRate, sellRate, row.event_id, row.category_id]
@@ -28,13 +28,30 @@ async function ensureOutboundRateColumn() {
   }
 }
 
+async function ensureNotesColumn() {
+  const db = await getDb();
+  try {
+    await db.execute('ALTER TABLE event ADD COLUMN notes TEXT');
+  } catch {
+    // Column already exists
+  }
+}
+
+export async function updateEventNotes(eventId: string, notes: string): Promise<void> {
+  const db = await getDb();
+  await ensureNotesColumn();
+  await db.execute('UPDATE event SET notes = $1 WHERE id = $2', [notes, eventId]);
+}
+
 export async function listEvents(): Promise<Event[]> {
   const db = await getDb();
+  await ensureNotesColumn();
   return db.select<Event[]>('SELECT * FROM event ORDER BY event_date DESC');
 }
 
 export async function getEvent(id: string): Promise<Event> {
   const db = await getDb();
+  await ensureNotesColumn();
   const res = await db.select<Event[]>('SELECT * FROM event WHERE id = $1', [id]);
   if (res.length === 0) throw new Error('Event not found');
   return res[0];
@@ -87,17 +104,16 @@ export async function syncEventRates(eventId: string): Promise<void> {
   await ensureOutboundRateColumn();
   await db.execute('DELETE FROM event_rate WHERE event_id = $1', [eventId]);
 
-  const categories = await db.select<{id: string, default_rate: number, archived: number}[]>(
-    "SELECT id, default_rate, archived FROM category"
+  const categories = await db.select<{id: string, default_rate: number, buy_rate: number, archived: number}[]>(
+    "SELECT id, default_rate, buy_rate, archived FROM category"
   );
 
   for (const cat of categories) {
-    const sellRate = cat.default_rate;
-    const buyRate = Math.round(sellRate * 0.90); // 10% below sell
-    const isActive = cat.archived ? 0 : 1; // archived → inactive for new sessions
+    const buyRate = cat.buy_rate ?? Math.floor(cat.default_rate * 0.90);
+    const isActive = cat.archived ? 0 : 1;
     await db.execute(
       'INSERT INTO event_rate (event_id, category_id, active_rate, outbound_rate, is_active) VALUES ($1, $2, $3, $4, $5)',
-      [eventId, cat.id, buyRate, sellRate, isActive]
+      [eventId, cat.id, buyRate, cat.default_rate, isActive]
     );
   }
 }

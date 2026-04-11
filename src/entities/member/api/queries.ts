@@ -152,6 +152,14 @@ export async function updateMember(id: number, updates: Partial<{ name: string; 
   await db.execute(`UPDATE member SET ${setClauses.join(', ')} WHERE id = $${idIdx}`, args);
 }
 
+export async function deleteMember(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute('DELETE FROM deposit_item WHERE deposit_id IN (SELECT id FROM deposit WHERE member_id = $1)', [id]);
+  await db.execute('DELETE FROM deposit WHERE member_id = $1', [id]);
+  await db.execute('DELETE FROM semester_savings WHERE member_id = $1', [id]);
+  await db.execute('DELETE FROM member WHERE id = $1', [id]);
+}
+
 export async function getMemberEarnings(memberId: number): Promise<number> {
   const db = await getDb();
   const result = await db.select<{ total: number }[]>(

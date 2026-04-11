@@ -2,6 +2,7 @@ export interface Event {
   id: string;
   event_date: string;
   status: string;
+  notes?: string;
 }
 
 export interface EventRate {

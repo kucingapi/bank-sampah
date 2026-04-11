@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/api/query-keys';
-import { listMembers, createMember, getMemberEarnings, exportDetailedMemberList, updateMember } from './queries';
+import { listMembers, createMember, getMemberEarnings, exportDetailedMemberList, updateMember, deleteMember } from './queries';
 
 export function useMembers(filters?: { search?: string; eventDateStart?: string; eventDateEnd?: string }) {
   return useQuery({
@@ -40,6 +40,16 @@ export function useUpdateMember() {
   return useMutation({
     mutationFn: ({ id, updates }: { id: number; updates: Partial<{ name: string; address: string; phone: string }> }) =>
       updateMember(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.members.all });
+    },
+  });
+}
+
+export function useDeleteMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteMember(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.members.all });
     },

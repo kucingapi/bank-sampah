@@ -1,5 +1,5 @@
 import { getDb } from '@/shared/api';
-import { getPreviousSemester, type SemesterLabel } from '@/shared/lib/semester';
+import { getPreviousSemester, getSemesterDateRange, type SemesterLabel } from '@/shared/lib/semester';
 
 export interface MemberPaymentPivot {
   memberId: number;
@@ -217,17 +217,7 @@ export async function getMemberSemesterPivot(
   const db = await getDb();
 
   // Parse semester label
-  const [yearStr, sem] = semesterLabel.split('-');
-  const year = parseInt(yearStr, 10);
-  let startDate: string;
-  let endDate: string;
-  if (sem === 'S1') {
-    startDate = `${year}-01-01`;
-    endDate = `${year}-06-30`;
-  } else {
-    startDate = `${year}-07-01`;
-    endDate = `${year}-12-31`;
-  }
+  const { startDate, endDate } = getSemesterDateRange(semesterLabel);
 
   // Get events in this semester (used for debugging)
   await db.select<{ id: string; event_date: string }[]>(

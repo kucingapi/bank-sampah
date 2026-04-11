@@ -1,8 +1,9 @@
 import { useCallback, useState, useEffect, useRef } from "react"
 import { createClient } from "@libsql/client/web"
 import { toast } from "sonner"
-import { HardDrive, Download, Upload, RotateCcw, AlertTriangle, CloudUpload, CloudDownload, Loader2, XCircle } from "lucide-react"
+import { HardDrive, Download, Upload, RotateCcw, AlertTriangle, CloudUpload, CloudDownload, Loader2, XCircle, Database } from "lucide-react"
 import { getDb } from "@/shared/api"
+import { seedBankSampah } from "@/shared/lib/seed"
 import { getTursoConfig, setTursoConfig } from "@/shared/lib/db-config"
 import { useBackupTask, type BackupTask, clearTask } from "@/shared/context/backup-context"
 import { Button } from "@/shared/ui/ui/button"
@@ -45,9 +46,9 @@ interface TursoStats {
 
 const TABLES = [
   { name: "member", cols: "id, name, address, phone, join_date" },
-  { name: "category", cols: "id, name, unit, default_rate, status" },
+  { name: "category", cols: "id, name, unit, default_rate, buy_rate, status" },
   { name: "vendor", cols: "id, name" },
-  { name: "event", cols: "id, event_date, status" },
+  { name: "event", cols: "id, event_date, status, notes" },
   { name: "event_rate", cols: "event_id, category_id, active_rate, outbound_rate, is_active" },
   { name: "deposit", cols: "id, event_id, member_id, time, total_payout" },
   { name: "deposit_item", cols: "deposit_id, category_id, weight" },
@@ -59,9 +60,9 @@ const TABLES = [
 const CREATE_TABLES_SQL = [
   `CREATE TABLE IF NOT EXISTS backup_meta (backup_id TEXT PRIMARY KEY, backed_at TEXT NOT NULL, source TEXT)`,
   `CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, address TEXT, phone TEXT, join_date TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS category (id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, default_rate REAL NOT NULL, status TEXT NOT NULL DEFAULT 'active')`,
+  `CREATE TABLE IF NOT EXISTS category (id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, default_rate REAL NOT NULL, buy_rate REAL NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active')`,
   `CREATE TABLE IF NOT EXISTS vendor (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`,
-  `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active')`,
+  `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', notes TEXT)`,
   `CREATE TABLE IF NOT EXISTS event_rate (event_id TEXT NOT NULL, category_id TEXT NOT NULL, active_rate REAL NOT NULL, outbound_rate REAL NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (event_id, category_id))`,
   `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id))`,
@@ -130,9 +131,9 @@ async function clearTursoData(turso: ReturnType<typeof createClient>): Promise<v
 
 const CREATE_TABLES_LOCAL = [
   `CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, address TEXT, phone TEXT, join_date TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS category (id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, default_rate REAL NOT NULL, status TEXT NOT NULL DEFAULT 'active')`,
+  `CREATE TABLE IF NOT EXISTS category (id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, default_rate REAL NOT NULL, buy_rate REAL NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active')`,
   `CREATE TABLE IF NOT EXISTS vendor (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`,
-  `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active')`,
+  `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', notes TEXT)`,
   `CREATE TABLE IF NOT EXISTS event_rate (event_id TEXT NOT NULL, category_id TEXT NOT NULL, active_rate REAL NOT NULL, outbound_rate REAL NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (event_id, category_id))`,
   `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id))`,
@@ -240,6 +241,8 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(false)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [seedDialogOpen, setSeedDialogOpen] = useState(false)
+  const [seeding, setSeeding] = useState(false)
 
   const [tursoUrl, setTursoUrl] = useState(() => getTursoConfig().url)
   const [tursoToken, setTursoToken] = useState(() => getTursoConfig().token)
@@ -254,6 +257,22 @@ export function SettingsPage() {
   const [uploadError, setUploadError] = useState("")
 
   const { task, setTask } = useBackupTask()
+
+  useEffect(() => {
+    async function migrateBuyRate() {
+      try {
+        const db = await getDb()
+        await db.execute('ALTER TABLE category ADD COLUMN buy_rate REAL NOT NULL DEFAULT 0')
+      } catch {
+      }
+      try {
+        const db = await getDb()
+        await db.execute("UPDATE category SET buy_rate = CAST(default_rate * 0.90 AS INTEGER) WHERE buy_rate = 0 AND default_rate > 0")
+      } catch {
+      }
+    }
+    migrateBuyRate()
+  }, [])
 
   // Persist turso config
   useEffect(() => {
@@ -337,6 +356,21 @@ export function SettingsPage() {
     } finally {
       setResetting(false)
       setResetDialogOpen(false)
+    }
+  }, [])
+
+  const handleSeed = useCallback(async () => {
+    setSeeding(true)
+    try {
+      await seedBankSampah()
+      setStats(null)
+      toast.success("Data awal berhasil ditambahkan!")
+    } catch (err) {
+      console.error("Seed error:", err)
+      toast.error("Gagal menjalankan seeder.")
+    } finally {
+      setSeeding(false)
+      setSeedDialogOpen(false)
     }
   }, [])
 
@@ -687,6 +721,26 @@ export function SettingsPage() {
 
         <Separator />
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="size-5" />
+              Isi Data Awal (Seeder)
+            </CardTitle>
+            <CardDescription>
+              Tambahkan data contoh (kategori, anggota, event, deposit) untuk pengujian.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={() => setSeedDialogOpen(true)} disabled={seeding}>
+              {seeding ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Database className="size-4 mr-2" />}
+              {seeding ? "Menjalankan..." : "Jalankan Seeder"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Separator />
+
         {/* Reset Database */}
         <Card>
           <CardHeader>
@@ -706,6 +760,23 @@ export function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={seedDialogOpen} onOpenChange={setSeedDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Jalankan Seeder?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Database saat ini akan ditimpa dengan data contoh. Data yang sudah ada akan digabung (bukan dihapus). Lanjutkan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSeed} disabled={seeding}>
+              {seeding ? "Menjalankan..." : "Ya, Jalankan"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <AlertDialogContent>

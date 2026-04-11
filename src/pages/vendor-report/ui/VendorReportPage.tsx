@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
 import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEvent, useEventCategoryTotals, useEventRates } from '@/entities/event/api/hooks';
+import { updateEventNotes } from '@/entities/event/api/queries';
 import { useVendors, useCreateVendor } from '@/entities/vendor/api/hooks';
 import { useCreateManifestsByAssignments, useManifests } from '@/entities/manifest/api/hooks';
 import { getOrCreateDefaultVendors } from '@/entities/vendor/api/queries';
@@ -29,8 +30,9 @@ interface VendorGroup {
   vendorName: string;
   categories: CategoryItem[];
   totalWeight: number;
-  totalPayout: number;      // buy total
-  totalSellPayout: number;  // sell total
+  totalPayout: number;
+  totalSellPayout: number;
+  totalProfit: number;
 }
 
 function VendorReportPageSkeleton() {
@@ -91,12 +93,19 @@ export function VendorReportPage({ eventId }: Props) {
   const [defaultVendorIds, setDefaultVendorIds] = useState<{ bsm: number; lainnya: number } | null>(null);
   const [newVendorName, setNewVendorName] = useState('');
   const [isAddingVendor, setIsAddingVendor] = useState(false);
+  const [notes, setNotes] = useState('');
 
   const { data: event, isLoading: eventLoading } = useEvent(eventId);
   const { data: categoryTotals, isLoading: totalsLoading } = useEventCategoryTotals(eventId);
   const { data: eventRates } = useEventRates(eventId);
   const { data: existingManifests } = useManifests(eventId);
   const { data: vendorsData = [] } = useVendors();
+
+  useEffect(() => {
+    if (event) {
+      setNotes((event as any).notes || '');
+    }
+  }, [event]);
   
   const createVendor = useCreateVendor();
   const createManifests = useCreateManifestsByAssignments();
@@ -188,6 +197,12 @@ export function VendorReportPage({ eventId }: Props) {
     }
   };
 
+  const handleNotesBlur = async () => {
+    if (event) {
+      await updateEventNotes(eventId, notes);
+    }
+  };
+
   const vendorGroups = useMemo((): VendorGroup[] => {
     const groups: Record<number, VendorGroup> = {};
     
@@ -206,7 +221,8 @@ export function VendorReportPage({ eventId }: Props) {
           categories: [],
           totalWeight: 0,
           totalPayout: 0,
-          totalSellPayout: 0
+          totalSellPayout: 0,
+          totalProfit: 0
         };
       }
 
@@ -214,6 +230,7 @@ export function VendorReportPage({ eventId }: Props) {
       groups[vendorId].totalWeight += item.totalWeight;
       groups[vendorId].totalPayout += item.totalPayout;
       groups[vendorId].totalSellPayout += item.totalSellPayout;
+      groups[vendorId].totalProfit += item.totalSellPayout - item.totalPayout;
     });
     
     return Object.values(groups).sort((a, b) => b.totalWeight - a.totalWeight);
@@ -331,6 +348,19 @@ export function VendorReportPage({ eventId }: Props) {
         </div>
       )}
 
+      <div className="border border-border rounded-lg p-4">
+        <label className="micro-label text-muted-foreground mb-2 block">
+          Catatan / Pengingat
+        </label>
+        <textarea
+          className="w-full min-h-[80px] bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          placeholder="Tambahkan catatan atau pengingat untuk laporan ini..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={handleNotesBlur}
+        />
+      </div>
+
       <div className="flex items-center gap-4 print:hidden">
         <div className="flex-1 flex items-center gap-2 max-w-sm">
           <Truck className="size-4 text-muted-foreground" />
@@ -361,13 +391,14 @@ export function VendorReportPage({ eventId }: Props) {
               <TableHead className="text-right">Total Berat</TableHead>
               <TableHead className="text-right">Harga Beli (Nasabah)</TableHead>
               <TableHead className="text-right">Harga Jual (Vendor)</TableHead>
+              <TableHead className="text-right">Profit</TableHead>
               <TableHead className="print:hidden">Alokasi Kategori</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {vendorGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
+                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">Belum ada material yang terkumpul pada sesi ini.</TableCell>
               </TableRow>
             ) : (
               vendorGroups.map(group => (
@@ -397,6 +428,9 @@ export function VendorReportPage({ eventId }: Props) {
                     <TableCell className="text-right tabular-nums font-medium text-primary">
                       {formatCurrency(group.totalSellPayout)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium text-green-400">
+                      {formatCurrency(group.totalProfit)}
+                    </TableCell>
                     <TableCell className="print:hidden"></TableCell>
                   </TableRow>
                   
@@ -416,6 +450,9 @@ export function VendorReportPage({ eventId }: Props) {
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-primary/70">
                         {formatCurrency(item.totalSellPayout)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-green-400">
+                        {formatCurrency(item.totalSellPayout - item.totalPayout)}
                       </TableCell>
                       <TableCell className="print:hidden">
                         <select
@@ -447,6 +484,9 @@ export function VendorReportPage({ eventId }: Props) {
                 </TableCell>
                 <TableCell className="text-right tabular-nums font-bold text-primary">
                   {formatCurrency(grandTotalSellPayout)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums font-bold text-green-400">
+                  {formatCurrency(grandTotalSellPayout - grandTotalBuyPayout)}
                 </TableCell>
                 <TableCell className="print:hidden"></TableCell>
               </TableRow>

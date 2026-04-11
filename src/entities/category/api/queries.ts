@@ -6,6 +6,7 @@ interface CategoryRow {
   name: string;
   unit: string;
   default_rate: number;
+  buy_rate: number;
   status: string;
   archived: number;
 }
@@ -18,20 +19,21 @@ export async function listCategories(): Promise<Category[]> {
     name: r.name,
     unit: r.unit,
     default_rate: r.default_rate,
+    buy_rate: r.buy_rate ?? 0,
     status: r.status,
     archived: Boolean(r.archived),
   }));
 }
 
-export async function createCategory(id: string, name: string, unit: string, defaultRate: number, archived = false): Promise<Category> {
+export async function createCategory(id: string, name: string, unit: string, defaultRate: number, buyRate: number, archived = false): Promise<Category> {
   const db = await getDb();
 
   await db.execute(
-    'INSERT INTO category (id, name, unit, default_rate, status, archived) VALUES ($1, $2, $3, $4, $5, $6)',
-    [id, name, unit, defaultRate, 'active', archived ? 1 : 0]
+    'INSERT INTO category (id, name, unit, default_rate, buy_rate, status, archived) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    [id, name, unit, defaultRate, buyRate, 'active', archived ? 1 : 0]
   );
 
-  return { id, name, unit, default_rate: defaultRate, status: 'active', archived };
+  return { id, name, unit, default_rate: defaultRate, buy_rate: buyRate, status: 'active', archived };
 }
 
 export async function updateCategory(id: string, updates: Partial<Category>): Promise<void> {
