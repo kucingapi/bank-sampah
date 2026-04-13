@@ -364,7 +364,7 @@ export function MemberPaymentPage() {
     .pivot-table th,
     .pivot-table td {
       padding: 4px 8px !important;
-      font-size: 10px !important;
+      fon-size: 10px !important;
     }
   }
 `}</style>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight, Plus, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Printer, Truck, FileText, CheckCircle, ChevronDown, ChevronRight, Plus, X, AlertTriangle, ChevronsUpDown } from 'lucide-react';
 import { useEvent, useEventCategoryTotals, useEventRates } from '@/entities/event/api/hooks';
 import { updateEventNotes } from '@/entities/event/api/queries';
 import { useVendors, useCreateVendor } from '@/entities/vendor/api/hooks';
@@ -10,12 +10,104 @@ import type { Vendor } from '@/entities/vendor/model/types';
 import { formatCurrency } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/ui/button';
 import { Input } from '@/shared/ui/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/ui/select';
 import { getDb } from '@/shared/api';
 import { Skeleton } from '@/shared/ui/ui/skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableFooter } from '@/shared/ui/ui/table';
 import { ExportCSVButton } from '@/shared/ui/ExportCSVButton';
 import { exportToCSV } from '@/shared/lib/csv';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/ui/ui/command';
+
+interface VendorAllocation {
+  totalWeight: number;
+  categories: string[];
+}
+
+function VendorDropdown({
+  value,
+  onSelect,
+  vendors,
+  defaultVendorIds,
+  allocations,
+}: {
+  value: number;
+  onSelect: (vendorId: number) => void;
+  vendors: Vendor[];
+  defaultVendorIds: { bsm: number; lainnya: number } | null;
+  allocations: Record<number, VendorAllocation>;
+}) {
+  const [open, setOpen] = useState(false);
+  const currentVendor = vendors.find(v => v.id === value) ||
+    (value === defaultVendorIds?.bsm ? { id: value, name: 'BSM' } :
+     value === defaultVendorIds?.lainnya ? { id: value, name: 'Lainnya' } : null);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full h-8 text-xs justify-between font-normal"
+        >
+          <span className="truncate">{currentVendor?.name || 'Pilih vendor...'}</span>
+          <ChevronsUpDown className="ml-1 size-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Cari vendor..." className="h-8" />
+          <CommandList>
+            <CommandEmpty>Vendor tidak ditemukan.</CommandEmpty>
+            <CommandGroup>
+              {vendors.map(vendor => {
+                const alloc = allocations[vendor.id];
+                const hasAllocation = alloc && alloc.totalWeight > 0;
+                return (
+                  <CommandItem
+                    key={vendor.id}
+                    value={String(vendor.id)}
+                    onSelect={() => {
+                      onSelect(vendor.id);
+                      setOpen(false);
+                    }}
+                    className="flex flex-col items-start py-2 px-3"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Truck className="size-3 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-sm truncate">{vendor.name}</span>
+                      {value === vendor.id && (
+                        <CheckCircle className="size-3 ml-auto text-primary shrink-0" />
+                      )}
+                    </div>
+                    {hasAllocation && (
+                      <div className="text-xs text-muted-foreground ml-5 mt-0.5 w-full">
+                        <span className="tabular-nums">{alloc.totalWeight.toFixed(2)} kg</span>
+                        {alloc.categories.length > 0 && (
+                          <span className="text-muted-foreground/60 ml-1">
+                            · {alloc.categories.slice(0, 2).join(', ')}
+                            {alloc.categories.length > 2 && ` +${alloc.categories.length - 2}`}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface Props {
   eventId: string;
@@ -31,6 +123,7 @@ interface CategoryItem extends EventCategoryTotal {
   name: string;
   unit: string;
   outboundRate: number;
+  defaultVendorId: number | null;
 }
 
 interface VendorGroup {
@@ -118,6 +211,30 @@ export function VendorReportPage({ eventId }: Props) {
   const createVendor = useCreateVendor();
   const createManifests = useCreateManifestsByAssignments();
 
+  // Compute per-vendor total allocation weight across all categories (for dropdown display)
+  const vendorAllocations = useMemo(() => {
+    const alloc: Record<number, { totalWeight: number; categories: string[] }> = {};
+    availableVendors.forEach(v => {
+      alloc[v.id] = { totalWeight: 0, categories: [] };
+    });
+    Object.entries(categorySplits).forEach(([categoryId, splits]) => {
+      splits.forEach(split => {
+        if (!alloc[split.vendorId]) {
+          alloc[split.vendorId] = {
+            totalWeight: 0,
+            categories: []
+          };
+        }
+        alloc[split.vendorId].totalWeight += split.weight;
+        const item = categoryItems.find(i => i.categoryId === categoryId);
+        if (item && !alloc[split.vendorId].categories.includes(item.name)) {
+          alloc[split.vendorId].categories.push(item.name);
+        }
+      });
+    });
+    return alloc;
+  }, [categorySplits, availableVendors, categoryItems]);
+
   // 1. Initialize Default Vendors and Available Vendors
   useEffect(() => {
     async function loadDefaults() {
@@ -139,7 +256,7 @@ export function VendorReportPage({ eventId }: Props) {
       if (!categoryTotals || !defaultVendorIds) return;
 
       const db = await getDb();
-      const cats = await db.select<{ id: string, name: string, unit: string, sort_order: number }[]>('SELECT id, name, unit, sort_order FROM category ORDER BY sort_order ASC, name ASC');
+      const cats = await db.select<{ id: string, name: string, unit: string, sort_order: number, default_vendor_id: number | null }[]>('SELECT id, name, unit, sort_order, default_vendor_id FROM category ORDER BY sort_order ASC, name ASC');
 
       const outboundRateMap: Record<string, number> = {};
       if (eventRates) {
@@ -154,9 +271,21 @@ export function VendorReportPage({ eventId }: Props) {
           ...ct,
           name: cat?.name || 'Unknown',
           unit: cat?.unit || 'kg',
-          outboundRate: outboundRateMap[ct.categoryId] || 0
+          outboundRate: outboundRateMap[ct.categoryId] || 0,
+          defaultVendorId: cat?.default_vendor_id ?? null,
         };
       });
+
+      // Sort by category sort_order (matches the order configured in Skema Kategori)
+      items.sort((a, b) => {
+        const catA = cats.find(c => c.id === a.categoryId);
+        const catB = cats.find(c => c.id === b.categoryId);
+        const orderA = catA?.sort_order ?? Infinity;
+        const orderB = catB?.sort_order ?? Infinity;
+        if (orderA !== orderB) return orderA - orderB;
+        return (catA?.name || '').localeCompare(catB?.name || '');
+      });
+
       setCategoryItems(items);
 
       const splits: Record<string, CategorySplit[]> = {};
@@ -178,12 +307,9 @@ export function VendorReportPage({ eventId }: Props) {
         });
       } else {
         items.forEach(item => {
-          const isDefaultBsm = item.name.toLowerCase().includes('c4') ||
-                              item.name.toLowerCase().includes('karton') ||
-                              item.name.toLowerCase().includes('kertas');
-          const defaultVendorId = isDefaultBsm ? defaultVendorIds.bsm : defaultVendorIds.lainnya;
+          const vendorId = item.defaultVendorId ?? defaultVendorIds.lainnya;
           splits[item.categoryId] = [{
-            vendorId: defaultVendorId,
+            vendorId,
             weight: item.totalWeight,
             outboundRate: item.outboundRate
           }];
@@ -225,9 +351,14 @@ export function VendorReportPage({ eventId }: Props) {
       const existing = updated[categoryId] || [];
       const remainingWeight = item.totalWeight - existing.reduce((sum, s) => sum + s.weight, 0);
       if (remainingWeight <= 0) return prev;
+      const fallbackVendor = item.defaultVendorId ?? defaultVendorIds?.lainnya ?? 0;
+      // If the category's default vendor is already in the splits, use Lainnya
+      const vendorToUse = existing.some(s => s.vendorId === fallbackVendor)
+        ? (defaultVendorIds?.lainnya ?? 0)
+        : fallbackVendor;
       updated[categoryId] = [
         ...existing,
-        { vendorId: defaultVendorIds?.lainnya || 0, weight: remainingWeight, outboundRate: item.outboundRate }
+        { vendorId: vendorToUse, weight: remainingWeight, outboundRate: item.outboundRate }
       ];
       return updated;
     });
@@ -362,10 +493,10 @@ export function VendorReportPage({ eventId }: Props) {
         eventId,
         assignments
       });
-      alert('Manifest Laporan Vendor berhasil dibuat!');
+      alert('Laporan Vendor berhasil dibuat!');
     } catch (err) {
       console.error(err);
-      alert('Gagal membuat manifest.');
+      alert('Gagal membuat laporan.');
     }
   };
 
@@ -444,7 +575,7 @@ export function VendorReportPage({ eventId }: Props) {
       {existingManifests && existingManifests.length > 0 && (
         <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm flex gap-3 print:hidden">
           <CheckCircle className="w-5 h-5 flex-shrink-0" />
-          <p>Manifest sudah dibuat untuk sesi ini. Anda dapat mengubah alokasi vendor dan memproses ulang jika diperlukan.</p>
+          <p>Laporan sudah dibuat untuk sesi ini. Anda dapat mengubah alokasi vendor dan memproses ulang jika diperlukan.</p>
         </div>
       )}
 
@@ -588,19 +719,13 @@ export function VendorReportPage({ eventId }: Props) {
                             {formatCurrency(splitSellPayout - splitPayout)}
                           </TableCell>
                           <TableCell className="print:hidden">
-                            <Select
-                              value={String(split.vendorId)}
-                              onValueChange={val => handleVendorChange(item.categoryId, idx, parseInt(val))}
-                            >
-                              <SelectTrigger className="w-full h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableVendors.map(v => (
-                                  <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <VendorDropdown
+                              value={split.vendorId}
+                              onSelect={(vendorId) => handleVendorChange(item.categoryId, idx, vendorId)}
+                              vendors={availableVendors}
+                              defaultVendorIds={defaultVendorIds}
+                              allocations={vendorAllocations}
+                            />
                           </TableCell>
                         </TableRow>
                       );

@@ -7,4 +7,5 @@ export interface Category {
   status: string;
   archived: boolean;
   sort_order: number;
+  default_vendor_id: number | null;
 }

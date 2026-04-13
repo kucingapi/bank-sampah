@@ -44,20 +44,22 @@ interface TursoStats {
   lastBackup: string | null
 }
 
-// ── Helpers ──
+// ── Table Definitions ──
 
-const TABLES = [
-  { name: "member", cols: "id, name, address, phone, join_date" },
-  { name: "category", cols: "id, name, unit, default_rate, buy_rate, status" },
-  { name: "vendor", cols: "id, name" },
-  { name: "event", cols: "id, event_date, status, notes" },
-  { name: "event_rate", cols: "event_id, category_id, active_rate, outbound_rate, is_active" },
-  { name: "deposit", cols: "id, event_id, member_id, time, total_payout" },
-  { name: "deposit_item", cols: "deposit_id, category_id, weight" },
-  { name: "vendor_manifest", cols: "id, event_id, vendor_id" },
-  { name: "manifest_item", cols: "manifest_id, category_id, outbound_rate" },
-  { name: "semester_savings", cols: "id, member_id, semester_label, saved_amount, is_saved, rolled_from" },
+export const TABLE_DEFINITIONS = [
+  { name: "member", label: "Anggota", cols: "id, name, address, phone, join_date" },
+  { name: "category", label: "Kategori", cols: "id, name, unit, default_rate, buy_rate, status" },
+  { name: "vendor", label: "Vendor", cols: "id, name" },
+  { name: "event", label: "Event", cols: "id, event_date, status, notes" },
+  { name: "event_rate", label: "Event Rate", cols: "event_id, category_id, active_rate, outbound_rate, is_active" },
+  { name: "deposit", label: "Deposit", cols: "id, event_id, member_id, time, total_payout" },
+  { name: "deposit_item", label: "Deposit Item", cols: "deposit_id, category_id, weight" },
+  { name: "vendor_manifest", label: "Vendor Manifest", cols: "id, event_id, vendor_id" },
+  { name: "manifest_item", label: "Manifest Item", cols: "manifest_id, category_id, outbound_rate" },
+  { name: "semester_savings", label: "Semester Savings", cols: "id, member_id, semester_label, saved_amount, is_saved, rolled_from" },
 ]
+
+const TABLES = TABLE_DEFINITIONS
 
 const CREATE_TABLES_SQL = [
   `CREATE TABLE IF NOT EXISTS backup_meta (backup_id TEXT PRIMARY KEY, backed_at TEXT NOT NULL, source TEXT)`,
@@ -117,20 +119,6 @@ async function ensureTursoTables(turso: ReturnType<typeof createClient>): Promis
   }
 }
 
-async function clearTursoData(turso: ReturnType<typeof createClient>): Promise<void> {
-  await turso.execute("DELETE FROM semester_savings")
-  await turso.execute("DELETE FROM manifest_item")
-  await turso.execute("DELETE FROM vendor_manifest")
-  await turso.execute("DELETE FROM deposit_item")
-  await turso.execute("DELETE FROM deposit")
-  await turso.execute("DELETE FROM event_rate")
-  await turso.execute("DELETE FROM event")
-  await turso.execute("DELETE FROM vendor")
-  await turso.execute("DELETE FROM category")
-  await turso.execute("DELETE FROM member")
-  await turso.execute("DELETE FROM backup_meta")
-}
-
 const CREATE_TABLES_LOCAL = [
   `CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, address TEXT, phone TEXT, join_date TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS category (id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, default_rate REAL NOT NULL, buy_rate REAL NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active')`,
@@ -150,39 +138,32 @@ async function ensureLocalTables(db: Awaited<ReturnType<typeof getDb>>): Promise
   }
 }
 
-async function clearLocalData(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
-  await db.execute("DELETE FROM semester_savings")
-  await db.execute("DELETE FROM manifest_item")
-  await db.execute("DELETE FROM vendor_manifest")
-  await db.execute("DELETE FROM deposit_item")
-  await db.execute("DELETE FROM deposit")
-  await db.execute("DELETE FROM event_rate")
-  await db.execute("DELETE FROM event")
-  await db.execute("DELETE FROM vendor")
-  await db.execute("DELETE FROM category")
-  await db.execute("DELETE FROM member")
-}
-
 // ── Push / Pull ──
 
 async function pushToTurso(
   tursoUrl: string,
   tursoToken: string,
-  setTask: (t: BackupTask | null) => void
+  setTask: (t: BackupTask | null) => void,
+  selectedTables: string[]
 ): Promise<void> {
   const localDb = await getDb()
   const turso = createClient({ url: tursoUrl, authToken: tursoToken })
 
+  const tablesToPush = TABLES.filter(t => selectedTables.includes(t.name))
+
   setTask({ type: "push", status: "running", message: "Membuat tabel di Turso...", startedAt: Date.now() })
   await ensureTursoTables(turso)
 
-  setTask({ type: "push", status: "running", message: "Membersihkan data lama di Turso...", startedAt: Date.now() })
-  await clearTursoData(turso)
+  setTask({ type: "push", status: "running", message: "Membersihkan data tabel terpilih di Turso...", startedAt: Date.now() })
+  // Clear only selected tables on Turso
+  for (const table of tablesToPush) {
+    await turso.execute(`DELETE FROM ${table.name}`)
+  }
 
   const backupId = `local-${new Date().toISOString()}`
 
-  for (const table of TABLES) {
-    setTask({ type: "push", status: "running", message: `Mengekspor ${table.name}...`, startedAt: Date.now() })
+  for (const table of tablesToPush) {
+    setTask({ type: "push", status: "running", message: `Mengekspor ${table.label}...`, startedAt: Date.now() })
     const colArr = table.cols.split(", ")
     const placeholders = colArr.map(() => "?").join(", ")
     const rows = await localDb.select<any[]>(`SELECT * FROM ${table.name}`)
@@ -206,20 +187,26 @@ async function pushToTurso(
 async function pullFromTurso(
   tursoUrl: string,
   tursoToken: string,
-  setTask: (t: BackupTask | null) => void
+  setTask: (t: BackupTask | null) => void,
+  selectedTables: string[]
 ): Promise<void> {
   const localDb = await getDb()
   const turso = createClient({ url: tursoUrl, authToken: tursoToken })
+
+  const tablesToPull = TABLES.filter(t => selectedTables.includes(t.name))
 
   // Ensure all local tables exist first (fixes migration issues)
   setTask({ type: "pull", status: "running", message: "Memastikan tabel lokal ada...", startedAt: Date.now() })
   await ensureLocalTables(localDb)
 
-  setTask({ type: "pull", status: "running", message: "Menghapus data lokal...", startedAt: Date.now() })
-  await clearLocalData(localDb)
+  setTask({ type: "pull", status: "running", message: "Menghapus data tabel terpilih di lokal...", startedAt: Date.now() })
+  // Clear only selected tables locally
+  for (const table of tablesToPull) {
+    await localDb.execute(`DELETE FROM ${table.name}`)
+  }
 
-  for (const table of TABLES) {
-    setTask({ type: "pull", status: "running", message: `Mengimpor ${table.name}...`, startedAt: Date.now() })
+  for (const table of tablesToPull) {
+    setTask({ type: "pull", status: "running", message: `Mengimpor ${table.label}...`, startedAt: Date.now() })
     const colArr = table.cols.split(", ")
     const placeholders = colArr.map(() => "?").join(", ")
     const tursoResult = await turso.execute(`SELECT * FROM ${table.name}`)
@@ -255,6 +242,10 @@ export function SettingsPage() {
 
   const [tursoStats, setTursoStats] = useState<TursoStats | null>(null)
   const [loadingTursoStats, setLoadingTursoStats] = useState(false)
+
+  // Table selection for push/pull
+  const [selectedTables, setSelectedTables] = useState<string[]>(() => TABLES.map(t => t.name))
+  const [showTableSelection, setShowTableSelection] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -385,8 +376,12 @@ export function SettingsPage() {
       toast.error("URL dan Auth Token Turso harus diisi.")
       return
     }
+    if (selectedTables.length === 0) {
+      toast.error("Pilih minimal satu tabel untuk di-push.")
+      return
+    }
     try {
-      await pushToTurso(tursoUrl, tursoToken, setTask)
+      await pushToTurso(tursoUrl, tursoToken, setTask, selectedTables)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error("Push error:", msg)
@@ -397,15 +392,19 @@ export function SettingsPage() {
         startedAt: Date.now(),
       })
     }
-  }, [tursoUrl, tursoToken, setTask])
+  }, [tursoUrl, tursoToken, setTask, selectedTables])
 
   const handlePull = useCallback(async () => {
     if (!tursoUrl || !tursoToken) {
       toast.error("URL dan Auth Token Turso harus diisi.")
       return
     }
+    if (selectedTables.length === 0) {
+      toast.error("Pilih minimal satu tabel untuk di-pull.")
+      return
+    }
     try {
-      await pullFromTurso(tursoUrl, tursoToken, setTask)
+      await pullFromTurso(tursoUrl, tursoToken, setTask, selectedTables)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error("Pull error:", msg)
@@ -416,7 +415,7 @@ export function SettingsPage() {
         startedAt: Date.now(),
       })
     }
-  }, [tursoUrl, tursoToken, setTask])
+  }, [tursoUrl, tursoToken, setTask, selectedTables])
 
   const handleLoadTursoStats = useCallback(async () => {
     if (!tursoUrl || !tursoToken) {
@@ -544,8 +543,83 @@ export function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            {/* Table Selection */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Tabel yang akan disinkronkan</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowTableSelection(!showTableSelection)}
+                  className="text-xs"
+                >
+                  {showTableSelection ? "Sembunyikan" : "Pilih Tabel"}
+                </Button>
+              </div>
+
+              {showTableSelection && (
+                <div className="border border-border rounded-lg p-3 bg-muted/30 max-h-48 overflow-y-auto">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border">
+                      <Checkbox
+                        id="select-all-tables"
+                        checked={selectedTables.length === TABLES.length}
+                        onCheckedChange={(checked: boolean | 'indeterminate') => {
+                          setSelectedTables(checked ? TABLES.map(t => t.name) : [])
+                        }}
+                      />
+                      <Label htmlFor="select-all-tables" className="text-sm font-medium cursor-pointer">
+                        {selectedTables.length === TABLES.length ? "Batal Semua" : "Pilih Semua"}
+                      </Label>
+                    </div>
+                    {TABLES.map((table) => (
+                      <div key={table.name} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`table-${table.name}`}
+                          checked={selectedTables.includes(table.name)}
+                          onCheckedChange={(checked: boolean | 'indeterminate') => {
+                            if (checked) {
+                              setSelectedTables(prev => [...prev, table.name])
+                            } else {
+                              setSelectedTables(prev => prev.filter(n => n !== table.name))
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`table-${table.name}`} className="text-sm cursor-pointer flex-1">
+                          {table.label}
+                          <span className="text-xs text-muted-foreground ml-2">({table.name})</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Selected tables summary */}
+              <div className="flex flex-wrap gap-1">
+                {selectedTables.length === TABLES.length ? (
+                  <Badge variant="secondary">Semua tabel ({TABLES.length})</Badge>
+                ) : (
+                  <>
+                    <Badge variant="secondary">{selectedTables.length} tabel dipilih</Badge>
+                    {selectedTables.slice(0, 3).map(name => {
+                      const table = TABLES.find(t => t.name === name)
+                      return table ? (
+                        <Badge key={name} variant="outline">{table.label}</Badge>
+                      ) : null
+                    })}
+                    {selectedTables.length > 3 && (
+                      <Badge variant="outline">+{selectedTables.length - 3} lainnya</Badge>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
             <div className="flex flex-wrap gap-3">
-              <Button onClick={handlePush} disabled={!tursoUrl || !tursoToken || isBackingUp}>
+              <Button onClick={handlePush} disabled={!tursoUrl || !tursoToken || isBackingUp || selectedTables.length === 0}>
                 {isBackingUp && task?.type === "push" ? (
                   <Loader2 className="size-4 mr-2 animate-spin" />
                 ) : (
@@ -553,7 +627,7 @@ export function SettingsPage() {
                 )}
                 {isBackingUp && task?.type === "push" ? "Mendorong..." : "Dorong ke Turso"}
               </Button>
-              <Button variant="outline" onClick={handlePull} disabled={!tursoUrl || !tursoToken || isBackingUp}>
+              <Button variant="outline" onClick={handlePull} disabled={!tursoUrl || !tursoToken || isBackingUp || selectedTables.length === 0}>
                 {isBackingUp && task?.type === "pull" ? (
                   <Loader2 className="size-4 mr-2 animate-spin" />
                 ) : (

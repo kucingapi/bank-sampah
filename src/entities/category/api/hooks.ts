@@ -20,6 +20,7 @@ export function useCreateCategory() {
       defaultRate,
       buyRate,
       archived,
+      defaultVendorId,
     }: {
       id: string;
       name: string;
@@ -27,7 +28,8 @@ export function useCreateCategory() {
       defaultRate: number;
       buyRate: number;
       archived?: boolean;
-    }) => createCategory(id, name, unit, defaultRate, buyRate, archived),
+      defaultVendorId?: number | null;
+    }) => createCategory(id, name, unit, defaultRate, buyRate, archived, defaultVendorId ?? null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
     },

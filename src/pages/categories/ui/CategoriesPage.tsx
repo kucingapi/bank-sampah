@@ -1,12 +1,31 @@
-import { useState, useMemo } from "react"
-import { Plus, X, Archive, ArchiveRestore, ArrowUp, ArrowDown } from "lucide-react"
+import { useState, useMemo, useEffect, useCallback } from "react"
+import { Plus, X, Archive, ArchiveRestore, Save, GripVertical, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import {
   useCategories,
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
 } from "@/entities/category/api/hooks"
+import { useVendors } from "@/entities/vendor/api/hooks"
+import { getOrCreateDefaultVendors } from "@/entities/vendor/api/queries"
 import type { Category } from "@/entities/category/model/types"
 import { ExportCSVButton } from "@/shared/ui/ExportCSVButton"
 import { exportToCSV } from "@/shared/lib/csv"
@@ -22,6 +41,7 @@ import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/ui/select"
 import { Skeleton } from "@/shared/ui/ui/skeleton"
 import { Badge } from "@/shared/ui/ui/badge"
 import {
@@ -31,6 +51,51 @@ import {
   TooltipTrigger,
 } from "@/shared/ui/ui/tooltip"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/ui/ui/alert-dialog"
+
+function SortableTableRow({
+  id,
+  children,
+}: {
+  id: string
+  children: React.ReactNode
+}) {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className={isDragging ? "bg-muted/50" : ""}>
+      {children}
+    </TableRow>
+  )
+}
+
+function DragHandle({ id }: { id: string }) {
+  const {
+    attributes,
+    listeners,
+  } = useSortable({ id })
+
+  return (
+    <button
+      {...attributes}
+      {...listeners}
+      className="cursor-grab p-1 text-muted-foreground hover:text-foreground active:cursor-grabbing"
+      title="Seret untuk mengurutkan"
+    >
+      <GripVertical className="size-4" />
+    </button>
+  )
+}
 
 function CategoriesPageSkeleton() {
   return (
@@ -119,11 +184,120 @@ export function CategoriesPage() {
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
 
   const { data: categories = [], isLoading } = useCategories()
+  const { data: vendors = [] } = useVendors()
   const createCategory = useCreateCategory()
   const updateCategory = useUpdateCategory()
   const deleteCategory = useDeleteCategory()
 
-  const visibleCategories = categories
+  // Load default vendor IDs (Lainnya for new categories)
+  const [defaultVendorIds, setDefaultVendorIds] = useState<{ bsm: number; lainnya: number } | null>(null)
+  useEffect(() => {
+    async function loadDefaults() {
+      const defaults = await getOrCreateDefaultVendors()
+      setDefaultVendorIds({ bsm: defaults.bsm.id, lainnya: defaults.lainnya.id })
+    }
+    loadDefaults()
+  }, [])
+
+  // Local state for pending reorder changes
+  const [localOrder, setLocalOrder] = useState<string[]>([])
+
+  // Local state for pending inline edits: { categoryId: { field: value, ... } }
+  const [localEdits, setLocalEdits] = useState<Record<string, Partial<Category>>>({})
+
+  // Check if there are any pending changes (reorder + inline edits)
+  const hasPendingChanges = useMemo(() => {
+    const hasReorder = localOrder.length > 0 && JSON.stringify(localOrder) !== JSON.stringify(categories.map(c => c.id))
+    const hasEdits = Object.keys(localEdits).length > 0
+    return hasReorder || hasEdits
+  }, [localOrder, localEdits, categories])
+
+  // Check if a specific category has pending edits
+  const hasCategoryEdit = useCallback((id: string) => {
+    return Object.keys(localEdits).includes(id)
+  }, [localEdits])
+
+  // Initialize local order from fetched categories
+  useEffect(() => {
+    if (categories.length > 0 && localOrder.length === 0) {
+      setLocalOrder(categories.map(c => c.id))
+    }
+  }, [categories])
+
+  // Sync localOrder if categories change externally (e.g., after create/delete)
+  useEffect(() => {
+    const currentOrder = categories.map(c => c.id)
+    const hasReorder = localOrder.length > 0 && JSON.stringify(localOrder) !== JSON.stringify(currentOrder)
+    if (!hasReorder && JSON.stringify(localOrder) !== JSON.stringify(currentOrder)) {
+      setLocalOrder(currentOrder)
+    }
+  }, [categories])
+
+  const savePendingChanges = useCallback(async () => {
+    if (!hasPendingChanges) return
+
+    try {
+      const promises: Promise<unknown>[] = []
+
+      // Save reorder changes (only if localOrder is populated and differs from DB)
+      const currentOrder = categories.map(c => c.id)
+      const hasReorder = localOrder.length > 0 && JSON.stringify(localOrder) !== JSON.stringify(currentOrder)
+      if (hasReorder) {
+        localOrder.forEach((id, index) => {
+          promises.push(
+            updateCategory.mutateAsync({ id, updates: { sort_order: index } })
+          )
+        })
+      }
+
+      // Save inline edit changes
+      Object.entries(localEdits).forEach(([id, edits]) => {
+        if (Object.keys(edits).length > 0) {
+          promises.push(
+            updateCategory.mutateAsync({ id, updates: edits })
+          )
+        }
+      })
+
+      await Promise.all(promises)
+
+      toast.success("Perubahan kategori berhasil disimpan.")
+      setLocalEdits({})
+      setLocalOrder([])
+    } catch (err) {
+      console.error("Failed to save changes", err)
+      toast.error("Gagal menyimpan perubahan kategori.")
+    }
+  }, [hasPendingChanges, localOrder, localEdits, categories, updateCategory])
+
+  // Sensors for drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const visibleCategories = useMemo(() => {
+    if (localOrder.length === 0) return categories
+    // Return categories in the local order
+    return localOrder
+      .map(id => categories.find(c => c.id === id))
+      .filter((c): c is Category => c !== undefined)
+  }, [categories, localOrder])
+
+  // Get display value for a field (local edit if exists, otherwise DB value)
+  const getDisplayValue = useCallback((id: string, field: keyof Category) => {
+    if (localEdits[id] && localEdits[id][field] !== undefined) {
+      return localEdits[id][field]
+    }
+    const cat = categories.find(c => c.id === id)
+    return cat ? cat[field] : undefined
+  }, [categories, localEdits])
 
   const generateSafeId = (name: string) => {
     return name
@@ -166,7 +340,8 @@ export function CategoriesPage() {
         name: newName.trim(),
         unit: newUnit,
         defaultRate: parseFloat(newRate),
-        buyRate: parseFloat(newBuyRate) || Math.floor(parseFloat(newRate) * 0.90)
+        buyRate: parseFloat(newBuyRate) || Math.floor(parseFloat(newRate) * 0.90),
+        defaultVendorId: defaultVendorIds?.lainnya ?? null,
       })
       toast.success(`"${newName.trim()}" berhasil ditambahkan.`)
       setNewName("")
@@ -187,52 +362,42 @@ export function CategoriesPage() {
     }
   }
 
-  const handleMoveUp = async (id: string) => {
-    const idx = visibleCategories.findIndex(c => c.id === id)
-    if (idx <= 0) return
-    const currentOrder = visibleCategories[idx].sort_order
-    const prevOrder = visibleCategories[idx - 1].sort_order
-    try {
-      await updateCategory.mutateAsync({ id, updates: { sort_order: prevOrder } })
-      await updateCategory.mutateAsync({ id: visibleCategories[idx - 1].id, updates: { sort_order: currentOrder } })
-    } catch (err) {
-      console.error("Reorder failed", err)
-      toast.error("Gagal mengurutkan.")
+  const handleSortAlphabetically = () => {
+    const sorted = [...categories]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(c => c.id)
+    setLocalOrder(sorted)
+    toast.info("Urutan diubah menjadi A → Z. Klik \"Simpan Perubahan\" untuk menyimpan.")
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      setLocalOrder((items) => {
+        const oldIndex = items.indexOf(active.id as string)
+        const newIndex = items.indexOf(over.id as string)
+        return arrayMove(items, oldIndex, newIndex)
+      })
     }
   }
 
-  const handleMoveDown = async (id: string) => {
-    const idx = visibleCategories.findIndex(c => c.id === id)
-    if (idx < 0 || idx >= visibleCategories.length - 1) return
-    const currentOrder = visibleCategories[idx].sort_order
-    const nextOrder = visibleCategories[idx + 1].sort_order
-    try {
-      await updateCategory.mutateAsync({ id, updates: { sort_order: nextOrder } })
-      await updateCategory.mutateAsync({ id: visibleCategories[idx + 1].id, updates: { sort_order: currentOrder } })
-    } catch (err) {
-      console.error("Reorder failed", err)
-      toast.error("Gagal mengurutkan.")
-    }
-  }
-
-  const handleUpdate = async (id: string, field: keyof Category, value: any) => {
-    const cat = categories.find((c) => c.id === id)
-    try {
-      await updateCategory.mutateAsync({ id, updates: { [field]: value } })
-
-      if (field === "archived") {
-        const action = value ? "diarsipkan" : "diaktifkan untuk sesi baru"
-        toast.success(`"${cat?.name}" ${action}.`, {
-          description: value
-            ? "Kategori tidak akan otomatis aktif di sesi baru."
-            : "Kategori akan otomatis aktif di sesi baru.",
-        })
+  // Batch inline edit locally — no DB save until user clicks "Simpan"
+  const handleLocalEdit = (id: string, field: keyof Category, value: any) => {
+    setLocalEdits(prev => {
+      const existing = prev[id] || {}
+      // If value is same as DB original, remove from edits (no change needed)
+      const cat = categories.find(c => c.id === id)
+      if (cat && cat[field] === value) {
+        const { [field]: _, ...rest } = existing
+        if (Object.keys(rest).length === 0) {
+          const { [id]: __, ...restEdits } = prev
+          return restEdits
+        }
+        return { ...prev, [id]: rest }
       }
-    } catch (err) {
-      console.error("Update failed", err)
-      const errorMessage = err instanceof Error ? err.message : "Terjadi kesalahan"
-      toast.error(`Gagal memperbarui kategori: ${errorMessage}`)
-    }
+      return { ...prev, [id]: { ...existing, [field]: value } }
+    })
   }
 
   const handleDelete = async (id: string) => {
@@ -358,185 +523,218 @@ export function CategoriesPage() {
             <div className="flex items-center gap-4">
               <h2 className="section-header">Daftar Material</h2>
               <ExportCSVButton onExport={handleExport} filename="categories" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSortAlphabetically}
+                className="gap-2"
+              >
+                <ArrowUpDown className="size-3" />
+                Urutkan A → Z
+              </Button>
             </div>
-            <span className="text-sm font-medium text-muted-foreground">
-              {visibleCategories.length} entri
-            </span>
+            <div className="flex items-center gap-3">
+              {hasPendingChanges && (
+                <Button
+                  onClick={savePendingChanges}
+                  disabled={updateCategory.isPending}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Save className="size-4" />
+                  Simpan Perubahan
+                </Button>
+              )}
+              <span className="text-sm font-medium text-muted-foreground">
+                {visibleCategories.length} entri
+              </span>
+            </div>
           </div>
 
-          <div className="border border-input rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">Urutan</TableHead>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Satuan</TableHead>
-                  <TableHead>Harga Beli</TableHead>
-                  <TableHead>Harga Jual</TableHead>
-                  <TableHead className="text-center w-20">Sesi Baru</TableHead>
-                  <TableHead className="text-center w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleCategories.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                      Belum ada kategori terdaftar.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleCategories.map((cat, idx) => (
-                    <TableRow key={cat.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleMoveUp(cat.id)}
-                            disabled={idx === 0}
-                            title="Pindah ke atas"
-                            className="h-7 w-7"
-                          >
-                            <ArrowUp className="size-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleMoveDown(cat.id)}
-                            disabled={idx === visibleCategories.length - 1}
-                            title="Pindah ke bawah"
-                            className="h-7 w-7"
-                          >
-                            <ArrowDown className="size-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          className="font-medium"
-                          defaultValue={cat.name}
-                          onBlur={(e) => {
-                            const newValue = e.target.value.trim()
-                            if (newValue && newValue !== cat.name) {
-                              handleUpdate(cat.id, "name", newValue)
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const newValue = (e.target as HTMLInputElement).value.trim()
-                              if (newValue && newValue !== cat.name) {
-                                handleUpdate(cat.id, "name", newValue)
-                              }
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Tabs value={cat.unit} onValueChange={(value: string) => value && handleUpdate(cat.id, "unit", value)}>
-                          <TabsList className="w-fit">
-                            <TabsTrigger value="kg" className="px-3 py-1 text-xs font-medium">
-                              KG
-                            </TabsTrigger>
-                            <TabsTrigger value="pc" className="px-3 py-1 text-xs font-medium">
-                              PC
-                            </TabsTrigger>
-                          </TabsList>
-                        </Tabs>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          className="tabular-nums"
-                          defaultValue={cat.buy_rate}
-                          onBlur={(e) => {
-                            const newValue = parseFloat(e.target.value) || 0
-                            if (newValue !== cat.buy_rate) {
-                              handleUpdate(cat.id, "buy_rate", newValue)
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const newValue = parseFloat((e.target as HTMLInputElement).value) || 0
-                              if (newValue !== cat.buy_rate) {
-                                handleUpdate(cat.id, "buy_rate", newValue)
-                              }
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          className="tabular-nums"
-                          defaultValue={cat.default_rate}
-                          onBlur={(e) => {
-                            const newValue = parseFloat(e.target.value) || 0
-                            if (newValue !== cat.default_rate) {
-                              handleUpdate(cat.id, "default_rate", newValue)
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const newValue = parseFloat((e.target as HTMLInputElement).value) || 0
-                              if (newValue !== cat.default_rate) {
-                                handleUpdate(cat.id, "default_rate", newValue)
-                              }
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <TooltipProvider delayDuration={300}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge
-                                variant={cat.archived ? "secondary" : "default"}
-                                className="cursor-pointer gap-1 px-2 py-0.5 text-xs transition-opacity hover:opacity-80"
-                                onClick={() =>
-                                  handleUpdate(cat.id, "archived", !cat.archived)
-                                }
-                                role="switch"
-                                aria-checked={!cat.archived}
-                                aria-label={cat.archived ? "Aktifkan untuk sesi baru" : "Arsipkan"}
-                              >
-                                {cat.archived ? (
-                                  <>
-                                    <Archive className="size-3" />
-                                    Arsip
-                                  </>
-                                ) : (
-                                  <>
-                                    <ArchiveRestore className="size-3" />
-                                    Aktif
-                                  </>
-                                )}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              {cat.archived
-                                ? "Kategori diarsipkan — tidak otomatis aktif di sesi baru. Klik untuk mengaktifkan."
-                                : "Kategori aktif — otomatis tersedia di sesi baru. Klik untuk mengarsipkan."}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(cat.id)}
-                          title="Hapus Kategori"
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </TableCell>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={localOrder}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="border border-input rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12"></TableHead>
+                      <TableHead>Material</TableHead>
+                      <TableHead>Satuan</TableHead>
+                      <TableHead>Harga Beli</TableHead>
+                      <TableHead>Harga Jual</TableHead>
+                      <TableHead>Vendor Bawaan</TableHead>
+                      <TableHead className="text-center w-20">Sesi Baru</TableHead>
+                      <TableHead className="text-center w-12"></TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {visibleCategories.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+                          Belum ada kategori terdaftar.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      visibleCategories.map((cat) => {
+                        const displayName = getDisplayValue(cat.id, "name") as string | undefined ?? cat.name
+                        const displayUnit = getDisplayValue(cat.id, "unit") as string | undefined ?? cat.unit
+                        const displayBuyRate = getDisplayValue(cat.id, "buy_rate") as number | undefined ?? cat.buy_rate
+                        const displaySellRate = getDisplayValue(cat.id, "default_rate") as number | undefined ?? cat.default_rate
+                        const displayArchived = getDisplayValue(cat.id, "archived") as boolean | undefined ?? cat.archived
+                        const displayVendorId = getDisplayValue(cat.id, "default_vendor_id") as number | undefined ?? cat.default_vendor_id
+                        const isEdited = hasCategoryEdit(cat.id)
+
+                        return (
+                        <SortableTableRow key={cat.id} id={cat.id}>
+                          <TableCell>
+                            <DragHandle id={cat.id} />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              className={`font-medium ${isEdited ? "border-primary/50 bg-primary/5" : ""}`}
+                              value={displayName}
+                              onChange={(e) => {
+                                const newValue = e.target.value.trim()
+                                if (newValue) {
+                                  handleLocalEdit(cat.id, "name", newValue)
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const newValue = (e.target as HTMLInputElement).value.trim()
+                                  if (newValue) {
+                                    handleLocalEdit(cat.id, "name", newValue)
+                                  }
+                                }
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Tabs value={displayUnit} onValueChange={(value: string) => value && handleLocalEdit(cat.id, "unit", value)}>
+                              <TabsList className="w-fit">
+                                <TabsTrigger value="kg" className="px-3 py-1 text-xs font-medium">
+                                  KG
+                                </TabsTrigger>
+                                <TabsTrigger value="pc" className="px-3 py-1 text-xs font-medium">
+                                  PC
+                                </TabsTrigger>
+                              </TabsList>
+                            </Tabs>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              className={`tabular-nums ${isEdited ? "border-primary/50 bg-primary/5" : ""}`}
+                              value={displayBuyRate}
+                              onChange={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0
+                                handleLocalEdit(cat.id, "buy_rate", newValue)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const newValue = parseFloat((e.target as HTMLInputElement).value) || 0
+                                  handleLocalEdit(cat.id, "buy_rate", newValue)
+                                }
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              className={`tabular-nums ${isEdited ? "border-primary/50 bg-primary/5" : ""}`}
+                              value={displaySellRate}
+                              onChange={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0
+                                handleLocalEdit(cat.id, "default_rate", newValue)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const newValue = parseFloat((e.target as HTMLInputElement).value) || 0
+                                  handleLocalEdit(cat.id, "default_rate", newValue)
+                                }
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={displayVendorId ? String(displayVendorId) : String(defaultVendorIds?.lainnya ?? '')}
+                              onValueChange={(val) => {
+                                // Prevent setting to null — always default to Lainnya
+                                handleLocalEdit(cat.id, "default_vendor_id", parseInt(val))
+                              }}
+                              disabled={!defaultVendorIds}
+                            >
+                              <SelectTrigger className="w-full h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {vendors.map(v => (
+                                  <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <TooltipProvider delayDuration={300}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant={displayArchived ? "secondary" : "default"}
+                                    className={`cursor-pointer gap-1 px-2 py-0.5 text-xs transition-opacity hover:opacity-80 ${isEdited ? "ring-2 ring-primary/30" : ""}`}
+                                    onClick={() =>
+                                      handleLocalEdit(cat.id, "archived", !displayArchived)
+                                    }
+                                    role="switch"
+                                    aria-checked={!displayArchived}
+                                    aria-label={displayArchived ? "Aktifkan untuk sesi baru" : "Arsipkan"}
+                                  >
+                                    {displayArchived ? (
+                                      <>
+                                        <Archive className="size-3" />
+                                        Arsip
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ArchiveRestore className="size-3" />
+                                        Aktif
+                                      </>
+                                    )}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  {displayArchived
+                                    ? "Kategori diarsipkan — tidak otomatis aktif di sesi baru. Klik untuk mengaktifkan."
+                                    : "Kategori aktif — otomatis tersedia di sesi baru. Klik untuk mengarsipkan."}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(cat.id)}
+                              title="Hapus Kategori"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </TableCell>
+                        </SortableTableRow>
+                      )})
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </SortableContext>
+          </DndContext>
 
           <p className="text-muted-foreground/60 text-xs leading-relaxed max-w-xl">
             Perubahan Harga Dasar secara langsung (in-line edit) tidak mengubah

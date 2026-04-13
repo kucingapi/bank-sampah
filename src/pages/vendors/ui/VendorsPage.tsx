@@ -130,6 +130,14 @@ export function VendorsPage() {
 
   const confirmDelete = async () => {
     if (!vendorToDelete) return
+    const vendor = vendors.find(v => v.id === vendorToDelete)
+    // Prevent deleting the system "Lainnya" vendor
+    if (vendor && vendor.name === "Lainnya") {
+      alert("Vendor sistem tidak dapat dihapus.")
+      setDeleteDialogOpen(false)
+      setVendorToDelete(null)
+      return
+    }
     try {
       await deleteVendor.mutateAsync(vendorToDelete)
     } catch (err) {
@@ -150,7 +158,7 @@ export function VendorsPage() {
           Data <span className="text-muted-foreground/60">Vendor</span>
         </h1>
         <p className="mt-2 text-muted-foreground text-sm">
-          Pengaturan master vendor untuk alokasi material pada laporan manifest.
+          Pengaturan master vendor untuk alokasi material pada laporan.
         </p>
       </header>
 
@@ -218,15 +226,19 @@ export function VendorsPage() {
                         {vendor.name}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(vendor.id)}
-                          title="Hapus Vendor"
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <X className="size-4" />
-                        </Button>
+                        {vendor.name === "Lainnya" ? (
+                          <span className="text-xs text-muted-foreground/40 italic">Sistem</span>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(vendor.id)}
+                            title="Hapus Vendor"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -242,7 +254,7 @@ export function VendorsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Vendor</AlertDialogTitle>
             <AlertDialogDescription>
-              Hapus vendor ini secara permanen dari daftar master?
+              Hapus <strong>{vendors.find((v) => v.id === vendorToDelete)?.name}</strong> secara permanen dari daftar master?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -693,7 +693,7 @@ export function EventDetailsPage({ eventId }: Props) {
         onClose={() => setShowDeleteWarning(false)}
         onConfirm={handleDeleteEvent}
         title="Hapus Sesi?"
-        message="Tindakan ini akan menghapus sesi secara permanen beserta semua data setoran, item setoran, rate acara, dan manifest vendor. Tindakan ini tidak dapat dibatalkan."
+        message="Tindakan ini akan menghapus sesi secara permanen beserta semua data setoran, item setoran, rate acara, dan Laporan vendor. Tindakan ini tidak dapat dibatalkan."
         confirmLabel="Hapus Sesi"
         cancelLabel="Batal"
         variant="danger"
