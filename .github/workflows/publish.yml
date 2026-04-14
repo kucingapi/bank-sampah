@@ -64,6 +64,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Enable updater artifacts for release
+        run: |
+          jq '.bundle.createUpdaterArtifacts = true' src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
+
       - name: Copy private key to file
         if: matrix.platform != 'windows-latest'
         run: |
