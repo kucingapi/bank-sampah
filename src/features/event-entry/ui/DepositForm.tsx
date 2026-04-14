@@ -81,7 +81,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
       if (!ratesData.length) return
       const db = await getDb()
       const cats = await db.select<{ id: string; name: string; unit: string }[]>(
-        "SELECT id, name, unit FROM category"
+        "SELECT id, name, unit FROM category ORDER BY sort_order ASC, name ASC"
       )
 
       const ratesWithNames: RateWithDetails[] = ratesData

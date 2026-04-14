@@ -96,8 +96,12 @@ export function useUpdater(): UseUpdaterReturn {
   }, []);
 
   // Check for updates on app startup (once per session)
+  // Skip in dev mode — updater only works in production builds
   useEffect(() => {
-    checkForUpdate();
+    const isDev = import.meta.env.DEV;
+    if (!isDev) {
+      checkForUpdate();
+    }
   }, [checkForUpdate]);
 
   return {

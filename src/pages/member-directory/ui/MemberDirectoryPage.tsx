@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Search, Plus, Trash2 } from "lucide-react"
+import { Search, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { useMembers, useUpdateMember, useDeleteMember } from "@/entities/member/api/hooks"
 import type { Member } from "@/entities/member/model/types"
 import { Button } from "@/shared/ui/ui/button"
@@ -37,6 +37,8 @@ export function MemberDirectoryPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [memberToDelete, setMemberToDelete] = useState<{id: number, name: string} | null>(null)
+  const [sortColumn, setSortColumn] = useState<"id" | "name" | null>("id")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
   const { data: members = [], isLoading } = useMembers({
     search: searchQuery,
@@ -44,6 +46,29 @@ export function MemberDirectoryPage() {
 
   const updateMember = useUpdateMember()
   const deleteMemberMutation = useDeleteMember()
+
+  const handleSort = (column: "id" | "name") => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortColumn(column)
+      setSortDirection("asc")
+    }
+  }
+
+  const sortedMembers = sortColumn
+    ? [...members].sort((a, b) => {
+        if (sortColumn === "id") {
+          return sortDirection === "asc" ? a.id - b.id : b.id - a.id
+        }
+        if (sortColumn === "name") {
+          return sortDirection === "asc"
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name)
+        }
+        return 0
+      })
+    : members
 
   const handleUpdate = async (id: number, field: keyof Pick<Member, 'name' | 'address' | 'phone'>, value: string) => {
     try {
@@ -92,22 +117,46 @@ export function MemberDirectoryPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-20">ID</TableHead>
-                  <TableHead>Nama Lengkap</TableHead>
+                  <TableHead 
+                    className="w-20 cursor-pointer hover:text-foreground select-none"
+                    onClick={() => handleSort("id")}
+                  >
+                    <div className="flex items-center gap-1">
+                      ID
+                      {sortColumn === "id" ? (
+                        sortDirection === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
+                      ) : (
+                        <ArrowUpDown className="size-3 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:text-foreground select-none"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Nama Lengkap
+                      {sortColumn === "name" ? (
+                        sortDirection === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
+                      ) : (
+                        <ArrowUpDown className="size-3 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </TableHead>
                   <TableHead>No. Telepon</TableHead>
                   <TableHead>Alamat</TableHead>
                   <TableHead className="w-16">Hapus</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.length === 0 ? (
+                {sortedMembers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
-                      Belum ada anggota.
+                      {searchQuery ? "Tidak ada anggota yang cocok dengan pencarian." : "Belum ada anggota."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  members.map((m) => (
+                  sortedMembers.map((m) => (
                     <TableRow key={m.id}>
                       <TableCell>
                         <span className="font-mono text-xs text-muted-foreground">{m.id}</span>

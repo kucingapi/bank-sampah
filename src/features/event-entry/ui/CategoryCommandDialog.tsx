@@ -39,7 +39,9 @@ export function CategoryCommandDialogComponent({ open, onOpenChange, onSelect, s
     [onSelect, onOpenChange]
   )
 
-  const activeCategories = categories.filter((c) => c.status === "active" || c.status === "")
+  const activeCategories = categories
+    .filter((c) => c.status === "active" || c.status === "")
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
 
   const filtered = search
     ? activeCategories.filter(

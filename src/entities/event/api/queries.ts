@@ -105,7 +105,7 @@ export async function syncEventRates(eventId: string): Promise<void> {
   await db.execute('DELETE FROM event_rate WHERE event_id = $1', [eventId]);
 
   const categories = await db.select<{id: string, default_rate: number, buy_rate: number, archived: number}[]>(
-    "SELECT id, default_rate, buy_rate, archived FROM category"
+    "SELECT id, default_rate, buy_rate, archived FROM category ORDER BY sort_order ASC, name ASC"
   );
 
   for (const cat of categories) {
@@ -122,7 +122,10 @@ export async function getEventRates(eventId: string): Promise<(EventRate & { is_
   const db = await getDb();
   await ensureOutboundRateColumn();
   const rows = await db.select<{ event_id: string; category_id: string; active_rate: number; outbound_rate?: number; is_active: number }[]>(
-    'SELECT * FROM event_rate WHERE event_id = $1',
+    `SELECT er.* FROM event_rate er 
+     JOIN category c ON er.category_id = c.id 
+     WHERE er.event_id = $1 
+     ORDER BY c.sort_order ASC, c.name ASC`,
     [eventId]
   );
   return rows.map(r => ({
