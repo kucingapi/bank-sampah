@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tauri updater signing keys (KEEP PRIVATE!)
+src-tauri/updater.key
+src-tauri/updater.key.pub

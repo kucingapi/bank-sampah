@@ -291,7 +291,7 @@ export async function seedDeposits(eventId: string, memberIds: number[]) {
     for (const catId of selectedCats) {
       const cat = CATEGORIES.find(c => c.id === catId)!
       let weight: number
-      if (cat.unit === 'pc') {
+      if (cat.unit === 'pcs') {
         weight = Math.floor(rand() * 20) + 1
       } else {
         weight = parseFloat((rand() * 15 + 0.5).toFixed(2))

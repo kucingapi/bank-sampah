@@ -7,6 +7,8 @@ import { getDb } from "@/shared/api"
 import { seedBankSampah } from "@/shared/lib/seed"
 import { getTursoConfig, setTursoConfig } from "@/shared/lib/db-config"
 import { useBackupTask, type BackupTask, clearTask } from "@/shared/context/backup-context"
+import { CheckForUpdate } from "@/features/check-for-update"
+import { getVersion } from "@tauri-apps/api/app"
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
 import { Label } from "@/shared/ui/ui/label"
@@ -236,6 +238,7 @@ export function SettingsPage() {
   const [seedAnggota, setSeedAnggota] = useState(true)
   const [seedEvent, setSeedEvent] = useState(true)
   const [seedDeposit, setSeedDeposit] = useState(true)
+  const [appVersion, setAppVersion] = useState<string>("")
 
   const [tursoUrl, setTursoUrl] = useState(() => getTursoConfig().url)
   const [tursoToken, setTursoToken] = useState(() => getTursoConfig().token)
@@ -269,6 +272,10 @@ export function SettingsPage() {
       }
     }
     migrateBuyRate()
+  }, [])
+
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {})
   }, [])
 
   // Persist turso config
@@ -477,6 +484,9 @@ export function SettingsPage() {
           </p>
         </div>
       </header>
+
+      {/* Update Checker */}
+      <CheckForUpdate />
 
       {/* Active backup indicator */}
       {isBackingUp && (
@@ -941,6 +951,14 @@ export function SettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Version Footer */}
+      {appVersion && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <Database className="h-3 w-3" />
+          <span>Bank Sampah Mulia v{appVersion}</span>
+        </div>
+      )}
     </div>
   )
 }
