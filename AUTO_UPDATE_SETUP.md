@@ -2,81 +2,63 @@
 
 Your app now has built-in auto-update functionality! Users can check for and install updates directly from within the app — no need to manually download and install new versions.
 
-## What Was Set Up
-
-### ✅ Completed
+## ✅ What's Already Done
 
 1. **Rust Backend** — `tauri-plugin-updater` added and configured
-2. **Signing Keys** — Generated for secure update verification
+2. **Signing Keys** — Generated and saved to GitHub Secrets
 3. **GitHub Actions CI/CD** — Automated build and release workflow
-4. **Frontend UI** — Update checker integrated into Settings page
-5. **Auto-check on startup** — App checks for updates automatically
+4. **Frontend UI** — Update checker in Settings page (auto-checks on startup)
+5. **v0.1.1 Release** — Published with all binaries + `latest.json`
+6. **Update Endpoint** — Live at `https://github.com/kucingapi/bank-sampah/releases/latest/download/latest.json`
 
 ---
 
-## 🔧 What You Need To Do
+## 🔧 How to Release Updates
 
-### Step 1: Update GitHub Repository URL
+### Step 1: Bump the Version
 
-Open `src-tauri/tauri.conf.json` and replace `YOUR_GITHUB_USERNAME` with your actual GitHub username:
-
+Edit `src-tauri/tauri.conf.json`:
 ```json
-"endpoints": [
-  "https://github.com/YOUR_GITHUB_USERNAME/bank-sampah/releases/latest/download/latest.json"
-]
+"version": "0.1.2"  // Change to your new version
 ```
 
-### Step 2: Push Your Private Key to GitHub Secrets
-
-Your private key was generated during setup. To retrieve it:
+### Step 2: Commit and Tag
 
 ```bash
-cd src-tauri
-cat updater.key
+git add src-tauri/tauri.conf.json
+git commit -m "chore: bump version to 0.1.2"
+git tag v0.1.2
+git push origin master --tags
 ```
 
-Then:
-1. Go to your GitHub repository
-2. Navigate to **Settings → Secrets and variables → Actions**
-3. Click **New repository secret**
-4. Name: `TAURI_SIGNING_PRIVATE_KEY`
-5. Value: Paste the contents of `updater.key`
-6. Save
+### Step 3: Wait for GitHub Actions
 
-> ⚠️ **NEVER** commit your private key to the repository!
+The workflow will:
+1. Build for **Linux** (.deb, .rpm, AppImage) and **Windows** (.msi, .exe)
+2. Sign all binaries with your private key
+3. Create a **draft** GitHub Release
+4. Upload `latest.json` update manifest
 
-### Step 3: Push to GitHub
+### Step 4: Publish the Release
 
-If you haven't already:
+The workflow creates a draft. Publish it via GitHub UI or CLI:
 
+**Option A: GitHub UI**
+1. Go to your repo → Releases
+2. Find the draft release
+3. Click "Edit" → "Publish release"
+
+**Option B: GitHub CLI**
 ```bash
-git add .
-git commit -m "feat: add auto-update support"
-git push origin main
+# Get the release ID and publish
+gh api repos/kucingapi/bank-sampah/releases --jq '.[0] | select(.draft == true) | .id' | \
+  xargs -I{} gh api repos/kucingapi/bank-sampah/releases/{} -X PATCH -F draft=0
 ```
 
-### Step 4: Create Your First Release
-
-To trigger the CI/CD pipeline, create a tag:
-
-```bash
-git tag v0.1.1
-git push origin v0.1.1
+Once published, `latest.json` becomes available at:
 ```
-
-This will:
-1. Build your app for Windows, Linux (and optionally macOS)
-2. Sign the binaries with your private key
-3. Create a GitHub Release with the installers
-4. Generate the `latest.json` manifest
-
-### Step 5: Test the Update
-
-1. Install the app from your first release
-2. Create another tag (e.g., `v0.1.2`) with some changes
-3. Push the tag
-4. Open the installed app → go to Settings
-5. You should see "New version available" with a download button!
+https://github.com/kucingapi/bank-sampah/releases/latest/download/latest.json
+```
 
 ---
 
@@ -94,14 +76,14 @@ Settings Page
 └── After install: "Update installed! Restarting..."
 ```
 
-### CI/CD Pipeline
+### Release Workflow
 
-When you push a tag like `v0.1.1`:
+When you push a tag like `v0.1.2`:
 
 1. **GitHub Actions** triggers the `publish.yml` workflow
-2. **Builds** your app for all platforms (Windows, Linux, macOS)
+2. **Builds** your app for all platforms (Windows, Linux)
 3. **Signs** the installers with your private key
-4. **Creates** a GitHub Release (as draft)
+4. **Creates** a draft GitHub Release
 5. **Uploads** the signed installers + `latest.json`
 
 ### Update Check Flow
@@ -142,21 +124,6 @@ Installs and restarts automatically
 
 ---
 
-## CI/CD Workflow Details
-
-### `publish.yml` (Release)
-- **Triggers:** On tag push (`v*`) or manual dispatch
-- **Platforms:** Ubuntu 22.04, Windows (macOS commented out)
-- **Actions:** Build → Sign → Create GitHub Release
-- **Output:** Draft release with signed installers
-
-### `build.yml` (Test)
-- **Triggers:** On PR to main or manual dispatch
-- **Purpose:** Verify builds work without publishing
-- **Output:** Build artifacts (no release created)
-
----
-
 ## Security Notes
 
 - ✅ Updates are cryptographically signed
@@ -167,11 +134,30 @@ Installs and restarts automatically
 
 ---
 
+## Release Assets
+
+Each release includes:
+
+**Linux:**
+- `bank-sampah_X.X.X_amd64.deb` — Debian/Ubuntu installer
+- `bank-sampah-X.X.X-1.x86_64.rpm` — Fedora/RHEL installer
+- `bank-sampah_X.X.X_amd64.AppImage` — Portable Linux binary
+
+**Windows:**
+- `bank-sampah_X.X.X_x64_en-US.msi` — MSI installer
+- `bank-sampah_X.X.X_x64-setup.exe` — NSIS installer
+
+**All platforms:**
+- `latest.json` — Update manifest (required for auto-updates)
+- `.sig` files — Signature files for verification
+
+---
+
 ## Troubleshooting
 
 ### Update check fails with "404 Not Found"
-- Check that the GitHub URL in `tauri.conf.json` is correct
-- Ensure a release with `latest.json` exists
+- Check that the release is **published** (not draft)
+- Verify the URL in `tauri.conf.json` matches your repo
 
 ### "Invalid signature" error
 - Verify the public key in `tauri.conf.json` matches your private key
@@ -181,6 +167,10 @@ Installs and restarts automatically
 - Check Rust dependencies: `cd src-tauri && cargo check`
 - Check Node dependencies: `npm install`
 - Review workflow logs in GitHub Actions
+
+### Release created but no assets
+- Make sure `tagName` is set to `${{ github.ref_name }}` in the workflow
+- Check that `createUpdaterArtifacts: true` is in `tauri.conf.json`
 
 ---
 
