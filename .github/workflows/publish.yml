@@ -78,17 +78,6 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
 
-      - name: Create GitHub Release (first platform only)
-        if: matrix.platform == 'ubuntu-22.04'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create ${{ github.ref_name }} \
-            --draft \
-            --title "Bank Sampah v__VERSION__" \
-            --notes "See the assets to download and install this version." \
-            || true
-
       - name: Build & Upload
         uses: tauri-apps/tauri-action@v0
         env:
@@ -97,6 +86,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           tagName: ${{ github.ref_name }}
+          releaseName: "Bank Sampah v__VERSION__"
           releaseBody: "See the assets to download and install this version."
           releaseDraft: true
           prerelease: false
