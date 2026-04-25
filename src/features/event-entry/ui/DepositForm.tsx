@@ -211,11 +211,11 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
   if (ratesLoading) return null
 
   return (
-    <div className="grid grid-cols-[1fr_360px] gap-8 items-stretch">
+    <div className="grid grid-cols-[1fr_360px] gap-8" style={{ height: "calc(90vh - 12rem)", maxHeight: "calc(90vh - 12rem)", overflow: "hidden" }}>
       {/* ── Left: Form ── */}
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-8 overflow-hidden">
         {/* Identitas */}
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4 shrink-0">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2">
             <User className="size-3.5" /> Identitas Penyetor
           </h2>
@@ -305,8 +305,8 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
         </section>
 
         {/* Timbangan */}
-        <section className="flex flex-col gap-5">
-          <div className="flex items-center justify-between">
+        <section className="flex flex-col gap-5 min-h-0 flex-1">
+          <div className="flex items-center justify-between shrink-0">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2">
               <Scale className="size-3.5" /> Data Timbangan
             </h2>
@@ -321,7 +321,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
               Belum ada sinkronisasi harga kategori.
             </div>
           ) : (
-            <div className="overflow-y-auto pr-2" style={{ maxHeight: "calc(90vh - 16rem)", scrollbarGutter: "stable" }}>
+            <div className="overflow-y-auto pr-2" style={{ scrollbarGutter: "stable" }}>
               <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-4">
                 {rates.map((rate, idx) => {
                   const filled = (weights[rate.category_id] || 0) > 0
@@ -370,8 +370,8 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
       </div>
 
       {/* ── Right: Receipt ── */}
-      <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm h-[95%] ">
-        <CardHeader className="pb-4">
+      <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm h-[95%] flex flex-col">
+        <CardHeader className="pb-4 shrink-0">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <Receipt className="size-4 text-muted-foreground/50" />
             Kalkulasi
