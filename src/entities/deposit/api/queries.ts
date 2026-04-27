@@ -9,6 +9,7 @@ export async function listDeposits(eventId?: string): Promise<(Deposit & {
   const db = await getDb();
   let query = `
     SELECT d.id, d.event_id, d.member_id, d.time, d.total_payout,
+           m.id as memberId,
            m.name as memberName,
            (SELECT COUNT(*) FROM deposit_item WHERE deposit_id = d.id) as itemCount,
            COALESCE(SUM(di.weight * er.active_rate), 0) as total_payout_calculated,

@@ -113,22 +113,52 @@ export async function exportDetailedMemberList(eventDateStart?: string, eventDat
   return csvRows.join('\n');
 }
 
-export async function createMember(name: string, address?: string, phone?: string): Promise<Member> {
+export async function createMember(name: string, address?: string, phone?: string, id?: number): Promise<Member> {
   await ensureMemberColumns();
   const db = await getDb();
   const joinDate = new Date().toISOString();
 
-  const result = await db.execute(
-    'INSERT INTO member (name, address, phone, join_date) VALUES (?, ?, ?, ?)',
-    [name, address || null, phone || null, joinDate]
-  );
+  let result;
+  if (id !== undefined) {
+    result = await db.execute(
+      'INSERT INTO member (id, name, address, phone, join_date) VALUES (?, ?, ?, ?, ?)',
+      [id, name, address || null, phone || null, joinDate]
+    );
+  } else {
+    result = await db.execute(
+      'INSERT INTO member (name, address, phone, join_date) VALUES (?, ?, ?, ?, ?)',
+      [name, address || null, phone || null, joinDate]
+    );
+  }
 
-  const lastId = result.lastInsertId;
+  const lastId = id ?? result.lastInsertId;
   if (lastId === undefined) {
     throw new Error('Failed to create member');
   }
 
   return { id: lastId, name, address, phone, join_date: joinDate };
+}
+
+export async function isMemberIdTaken(id: number, excludeId?: number): Promise<boolean> {
+  const db = await getDb();
+  let query = 'SELECT id FROM member WHERE id = $1';
+  const args: any[] = [id];
+  if (excludeId !== undefined) {
+    query += ' AND id != $2';
+    args.push(excludeId);
+  }
+  const rows = await db.select<{ id: number }[]>(query, args);
+  return rows.length > 0;
+}
+
+export async function updateMemberId(oldId: number, newId: number): Promise<void> {
+  const db = await getDb();
+  const existing = await db.select<{ id: number }[]>('SELECT id FROM member WHERE id = $1', [newId]);
+  if (existing.length > 0) throw new Error('ID sudah digunakan');
+  await db.execute('UPDATE deposit SET member_id = $1 WHERE member_id = $2', [newId, oldId]);
+  await db.execute('UPDATE semester_savings SET member_id = $1 WHERE member_id = $2', [newId, oldId]);
+  await db.execute('INSERT INTO member (id, name, address, phone, join_date) SELECT $1, name, address, phone, join_date FROM member WHERE id = $2', [newId, oldId]);
+  await db.execute('DELETE FROM member WHERE id = $1', [oldId]);
 }
 
 export async function updateMember(id: number, updates: Partial<{ name: string; address: string; phone: string }>): Promise<void> {

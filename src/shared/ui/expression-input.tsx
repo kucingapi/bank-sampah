@@ -21,13 +21,13 @@ interface ExpressionInputProps {
  * Returns the result as a string, or the original string if invalid.
  */
 function evaluateExpression(expr: string): string {
-  const trimmed = expr.trim()
+  const trimmed = expr.trim().replace(",", ".")
   if (!trimmed) return ""
 
   // Check if it's already a plain number — no evaluation needed
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed
 
-  // Validate: only allow digits, decimal points, whitespace, + - * /
+  // Validate: only allow digits, decimal points, whitespace, + - * / operators
   if (!/^[\d\s.+*/-]+$/.test(trimmed)) return trimmed
 
   try {
@@ -135,7 +135,7 @@ export function ExpressionInput({
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value
+    const raw = e.target.value.replace(",", ".")
     setDisplayValue(raw)
     // Detect if user is typing an expression (contains operators)
     setHasExpression(/[+\-*/]/.test(raw) && /\d/.test(raw))

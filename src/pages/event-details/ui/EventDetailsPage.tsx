@@ -44,6 +44,7 @@ interface Props {
 
 interface DepositWithDetails extends Deposit {
   memberName: string
+  memberId: number
   itemCount: number
   items: { category_id: string; category_name: string; weight: number; payout: number; unit: string }[]
 }
@@ -244,6 +245,15 @@ export function EventDetailsPage({ eventId }: Props) {
             hour: "2-digit",
             minute: "2-digit",
           })}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "memberId",
+      header: "ID Anggota",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.memberId}
         </span>
       ),
     },

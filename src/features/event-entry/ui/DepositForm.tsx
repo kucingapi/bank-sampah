@@ -117,11 +117,10 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
   }, [isEditMode, existingDeposit, membersData])
 
   const filteredMembers = useMemo(() => {
-    if (!searchQuery) return membersData.slice(0, 7)
+    if (!searchQuery) return membersData
     const q = searchQuery.toLowerCase()
     return membersData
       .filter((m) => m.name.toLowerCase().includes(q) || String(m.id).includes(q))
-      .slice(0, 7)
   }, [membersData, searchQuery])
 
   const activeWeights = useMemo(() => {
@@ -248,9 +247,9 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
                             setPopoverOpen(false)
                           }}
                         >
-                          <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-3 w-full">
+                            <span className="text-xs text-muted-foreground/60 font-mono shrink-0">{m.id}</span>
                             <span className="font-medium">{m.name}</span>
-                            <span className="text-xs text-muted-foreground/60 font-mono">{m.id}</span>
                           </div>
                         </CommandItem>
                       ))}

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Search, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
-import { useMembers, useUpdateMember, useDeleteMember } from "@/entities/member/api/hooks"
+import { useMembers, useUpdateMember, useDeleteMember, useUpdateMemberId } from "@/entities/member/api/hooks"
 import type { Member } from "@/entities/member/model/types"
 import { Button } from "@/shared/ui/ui/button"
 import { Input } from "@/shared/ui/ui/input"
@@ -39,6 +39,8 @@ export function MemberDirectoryPage() {
   const [memberToDelete, setMemberToDelete] = useState<{id: number, name: string} | null>(null)
   const [sortColumn, setSortColumn] = useState<"id" | "name" | null>("id")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editingIdValue, setEditingIdValue] = useState("")
 
   const { data: members = [], isLoading } = useMembers({
     search: searchQuery,
@@ -46,6 +48,7 @@ export function MemberDirectoryPage() {
 
   const updateMember = useUpdateMember()
   const deleteMemberMutation = useDeleteMember()
+  const updateMemberIdMutation = useUpdateMemberId()
 
   const handleSort = (column: "id" | "name") => {
     if (sortColumn === column) {
@@ -75,6 +78,29 @@ export function MemberDirectoryPage() {
       await updateMember.mutateAsync({ id, updates: { [field]: value } })
     } catch (err) {
       console.error("Update failed", err)
+    }
+  }
+
+  const handleUpdateId = async (oldId: number, newId: number) => {
+    if (oldId === newId) return
+    if (newId <= 0) return
+    try {
+      await updateMemberIdMutation.mutateAsync({ oldId, newId })
+    } catch (err) {
+      console.error("Update ID failed", err)
+    } finally {
+      setEditingId(null)
+      setEditingIdValue("")
+    }
+  }
+
+  const commitIdEdit = (memberId: number, rawValue: string) => {
+    const val = parseInt(rawValue, 10)
+    if (!isNaN(val) && val > 0) {
+      handleUpdateId(memberId, val)
+    } else {
+      setEditingId(null)
+      setEditingIdValue("")
     }
   }
 
@@ -159,7 +185,37 @@ export function MemberDirectoryPage() {
                   sortedMembers.map((m) => (
                     <TableRow key={m.id}>
                       <TableCell>
-                        <span className="font-mono text-xs text-muted-foreground">{m.id}</span>
+                        <Input
+                          type="number"
+                          className="font-mono text-xs bg-transparent border-none focus-visible:ring-1 h-8 w-16 text-center"
+                          value={editingId === m.id ? editingIdValue : m.id}
+                          onFocus={(e) => {
+                            if (editingId !== m.id) {
+                              setEditingId(m.id)
+                              setEditingIdValue(String(m.id))
+                              e.target.select()
+                            }
+                          }}
+                          onChange={(e) => {
+                            if (editingId !== m.id) {
+                              setEditingId(m.id)
+                              setEditingIdValue(e.target.value)
+                            } else {
+                              setEditingIdValue(e.target.value)
+                            }
+                          }}
+                          onBlur={(e) => {
+                            if (editingId === m.id) {
+                              commitIdEdit(m.id, e.currentTarget.value)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              commitIdEdit(m.id, e.currentTarget.value)
+                            }
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <Input

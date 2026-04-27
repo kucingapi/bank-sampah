@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '@/shared/ui/Modal';
-import { useCreateMember } from '@/entities/member/api/hooks';
+import { useCreateMember, useIsMemberIdTaken } from '@/entities/member/api/hooks';
 import { Input } from '@/shared/ui/ui/input';
 import { Button } from '@/shared/ui/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -12,12 +12,14 @@ interface AddMemberModalProps {
 }
 
 export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalProps) {
+  const [memberId, setMemberId] = useState('');
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
 
   const createMember = useCreateMember()
+  const checkIdTaken = useIsMemberIdTaken()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,11 +27,31 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
 
     setError('');
     try {
-      await createMember.mutateAsync({
-        name: name.trim(),
-        address: address.trim() || undefined,
-        phone: phone.trim() || undefined,
-      });
+      if (memberId.trim()) {
+        const idNum = parseInt(memberId.trim(), 10);
+        if (isNaN(idNum) || idNum <= 0) {
+          setError('ID harus berupa angka positif');
+          return;
+        }
+        const taken = await checkIdTaken.mutateAsync({ id: idNum });
+        if (taken) {
+          setError('ID sudah digunakan oleh anggota lain');
+          return;
+        }
+        await createMember.mutateAsync({
+          id: idNum,
+          name: name.trim(),
+          address: address.trim() || undefined,
+          phone: phone.trim() || undefined,
+        });
+      } else {
+        await createMember.mutateAsync({
+          name: name.trim(),
+          address: address.trim() || undefined,
+          phone: phone.trim() || undefined,
+        });
+      }
+      setMemberId('');
       setName('');
       setAddress('');
       setPhone('');
@@ -46,6 +68,17 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
         {error && <div className="text-red-600 bg-red-50 p-4 rounded-lg text-sm">{error}</div>}
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none">ID Anggota <span className="text-muted-foreground font-normal">(opsional)</span></label>
+            <Input
+              type="number"
+              placeholder="Auto jika kosong"
+              value={memberId}
+              onChange={(e) => setMemberId(e.target.value)}
+              disabled={createMember.isPending}
+              min={1}
+            />
+          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none">Nama Lengkap</label>
             <Input
