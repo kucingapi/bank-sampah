@@ -1,7 +1,7 @@
 {
   "name": "bank-sampah-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "build:release": "powershell -ExecutionPolicy Bypass -File scripts/build-with-retry.ps1",
+    "publish:update": "powershell -ExecutionPolicy Bypass -File scripts/publish-update.ps1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

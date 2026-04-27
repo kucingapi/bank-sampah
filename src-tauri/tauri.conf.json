@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "bank-sampah",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "identifier": "com.novel.bank-sampah",
   "build": {
     "frontendDist": "../dist",
@@ -25,7 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,9 +37,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYzQTcxRDEyODM3QjUzODIKUldTQ1UzdURFaDJuODVhTi9lZmxTaDZlNGsyUWVYVDZRRmd3VzdqandnNmdDc3FvQWxMeXdPdVkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1N0JBNTlGQjhFRDJFQTQKUldTa0x1MjRuNlY3OWRVVmNRUDZEc0c4aDV0cXZRTXZmd2tnajFCSmlqdHhFbkpYTExCYUQ5MkgK",
       "endpoints": [
-        "https://github.com/kucingapi/bank-sampah/releases/latest/download/latest.json"
+        "https://main.bank-sampah-updates.pages.dev/latest.json"
       ]
     }
   }

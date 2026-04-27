@@ -26,3 +26,5 @@ dist-ssr
 # Tauri updater signing keys (KEEP PRIVATE!)
 src-tauri/updater.key
 src-tauri/updater.key.pub
+.env
+update-artifacts/

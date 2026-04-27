@@ -89,6 +89,15 @@ This project has skills in `.agents/skills/`. **Use them automatically when the 
 
 ---
 
+## Custom Commands
+
+| Command | Description |
+|---|---|
+| `/publish` | Build and release a new version to Cloudflare Pages updater |
+| `/check-update` | Check current vs latest available version |
+
+---
+
 ## Tech Stack
 
 - **React 19** + **TypeScript**

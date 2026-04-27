@@ -33,7 +33,9 @@ export function useUpdater(): UseUpdaterReturn {
     setDownloadProgress(0);
 
     try {
-      const update = await check();
+      const update = await check({
+        headers: { "Accept": "application/json" },
+      });
 
       if (!update) {
         setStatus("up-to-date");
@@ -49,8 +51,9 @@ export function useUpdater(): UseUpdaterReturn {
         date: update.date ?? undefined,
       });
       setStatus("available");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to check for updates";
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error("[updater] check failed:", err);
       setError(message);
       setStatus("error");
       toast.error("Failed to check for updates", { description: message });

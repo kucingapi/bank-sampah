@@ -110,6 +110,9 @@ export function CheckForUpdate({ className }: CheckForUpdateProps) {
               <div>
                 <p className="text-sm font-medium text-foreground">Update check failed</p>
                 <p className="text-xs text-muted-foreground">{error}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Endpoint: https://main.bank-sampah-updates.pages.dev/latest.json
+                </p>
               </div>
               <Button onClick={checkForUpdate} size="sm" variant="outline" className="gap-2">
                 <RefreshCw className="h-4 w-4" />

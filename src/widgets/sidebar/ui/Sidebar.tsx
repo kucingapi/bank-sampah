@@ -115,6 +115,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
       )}
 
       <div className="p-4 border-t border-border">
+        <p className="text-xs text-muted-foreground/60 mb-2">v0.2.1</p>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {theme === 'light' ? (
