@@ -59,7 +59,7 @@ export function OverviewPage() {
     return <OverviewPageSkeleton />
   }
 
-  const safeStats = stats || { totalWeight: 0, totalPayout: 0, activeMembers: 0 }
+  const safeStats = stats || { totalWeight: 0, totalKg: 0, totalPc: 0, totalPayout: 0, activeMembers: 0 }
 
   return (
     <div className="p-12 mx-auto flex flex-col gap-12">
@@ -91,10 +91,18 @@ export function OverviewPage() {
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-medium tracking-tight">
-                {safeStats.totalWeight.toLocaleString("id-ID")}
+                {safeStats.totalKg.toLocaleString("id-ID")}
               </span>
               <span className="text-muted-foreground font-medium">kg</span>
             </div>
+            {safeStats.totalPc > 0 && (
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-2xl font-medium tracking-tight text-muted-foreground">
+                  {safeStats.totalPc.toLocaleString("id-ID")}
+                </span>
+                <span className="text-muted-foreground font-medium">pc</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -157,7 +165,7 @@ export function OverviewPage() {
                   <span className="font-medium">{item.name}</span>
                   <div className="flex gap-4">
                     <span className="text-muted-foreground">
-                      {item.totalWeight.toLocaleString("id-ID")} kg
+                      {item.totalWeight.toLocaleString("id-ID")} {item.unit}
                     </span>
                     <Badge variant="secondary" className="w-12 justify-center">
                       {item.percentage.toFixed(1)}%

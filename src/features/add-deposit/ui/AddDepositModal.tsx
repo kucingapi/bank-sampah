@@ -17,11 +17,11 @@ export function AddDepositModal({ isOpen, onClose, eventId }: AddDepositModalPro
   // Reset form state when modal re-opens
   const [key, setKey] = useState(0)
 
-  // Global keyboard shortcut: Ctrl+Shift+F
+  // Global keyboard shortcut: Ctrl+Shift+F or Ctrl+/
   useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === "F") {
+      if ((e.ctrlKey && e.shiftKey && e.key === "F") || (e.ctrlKey && e.code === "Slash")) {
         e.preventDefault()
         if (!formRef.current?.hasSelectedMember()) {
           setShowNoMemberWarning(true)

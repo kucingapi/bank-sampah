@@ -56,8 +56,11 @@ export function useCreateEvent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (date: string) => createEvent(date),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.events.all,
+        refetchType: 'all',
+      });
     },
   });
 }
@@ -67,9 +70,9 @@ export function useUpdateEventStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'finished' }) =>
       updateEventStatus(id, status),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(id) });
+    onSuccess: async (_, { id }) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.events.all, refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(id), refetchType: 'all' });
     },
   });
 }
@@ -78,8 +81,8 @@ export function useDeleteEvent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteEvent(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.events.all, refetchType: 'all' });
     },
   });
 }

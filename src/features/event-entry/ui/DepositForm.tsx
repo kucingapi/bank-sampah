@@ -311,7 +311,7 @@ export const DepositForm = forwardRef<DepositFormRef, Props>(({ eventId, deposit
             </h2>
             <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground/60 gap-1 px-2 py-0.5 rounded-md">
               <Keyboard className="size-3" />
-              Gunakan ← ↑ ↓ → atau Ctrl + Shift + F untuk navigasi
+              Gunakan ← ↑ ↓ → atau Ctrl + Shift + F / Ctrl + / untuk navigasi
             </Badge>
           </div>
 

@@ -14,10 +14,10 @@ export function EventEntryPage({ eventId, depositId }: Props) {
   const [commandOpen, setCommandOpen] = useState(false)
   const [showNoMemberWarning, setShowNoMemberWarning] = useState(false)
 
-  // Global keyboard shortcut: Ctrl+Shift+F
+  // Global keyboard shortcut: Ctrl+Shift+F or Ctrl+/
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === "F") {
+      if ((e.ctrlKey && e.shiftKey && e.key === "F") || (e.ctrlKey && e.code === "Slash")) {
         e.preventDefault()
         // Guard: check if member is selected
         if (!formRef.current?.hasSelectedMember()) {

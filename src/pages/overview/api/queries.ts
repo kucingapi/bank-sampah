@@ -2,6 +2,8 @@ import { getDb } from '@/shared/api';
 
 export interface DashboardStats {
   totalWeight: number;
+  totalKg: number;
+  totalPc: number;
   totalPayout: number;
   activeMembers: number;
 }
@@ -9,6 +11,7 @@ export interface DashboardStats {
 export interface CategoryBreakdown {
   categoryId: string;
   name: string;
+  unit: string;
   totalWeight: number;
   percentage: number;
 }
@@ -35,16 +38,29 @@ export async function getDashboardStats(dateStart?: string, dateEnd?: string): P
     args
   );
 
-  // Total weight
-  const weightRes = await db.select<{ total: number }[]>(
-    `SELECT SUM(weight) as total FROM deposit_item di JOIN deposit d ON di.deposit_id = d.id WHERE 1=1 ${queryExt}`,
+  // Total weight by unit
+  const kgRes = await db.select<{ total: number }[]>(
+    `SELECT SUM(di.weight) as total FROM deposit_item di
+     JOIN category c ON di.category_id = c.id
+     JOIN deposit d ON di.deposit_id = d.id
+     WHERE c.unit = 'kg'${queryExt.replace(' AND', ' AND d.')}`,
+    args
+  );
+
+  const pcRes = await db.select<{ total: number }[]>(
+    `SELECT SUM(di.weight) as total FROM deposit_item di
+     JOIN category c ON di.category_id = c.id
+     JOIN deposit d ON di.deposit_id = d.id
+     WHERE c.unit = 'pc'${queryExt.replace(' AND', ' AND d.')}`,
     args
   );
 
   return {
     activeMembers: memberRes[0]?.count || 0,
     totalPayout: payoutRes[0]?.total || 0,
-    totalWeight: weightRes[0]?.total || 0
+    totalWeight: (kgRes[0]?.total || 0) + (pcRes[0]?.total || 0),
+    totalKg: kgRes[0]?.total || 0,
+    totalPc: pcRes[0]?.total || 0
   };
 }
 
@@ -61,22 +77,26 @@ export async function getCategoryBreakdown(dateStart?: string, dateEnd?: string)
   const query = `
     SELECT 
       c.id as categoryId, 
-      c.name, 
+      c.name,
+      c.unit,
       SUM(di.weight) as totalWeight
     FROM deposit_item di
     JOIN category c ON di.category_id = c.id
     JOIN deposit d ON di.deposit_id = d.id
     WHERE 1=1 ${queryExt}
-    GROUP BY c.id, c.name
+    GROUP BY c.id, c.name, c.unit
     ORDER BY totalWeight DESC
   `;
 
-  const breakdown = await db.select<{ categoryId: string, name: string, totalWeight: number }[]>(query, args);
+const breakdown = await db.select<{ categoryId: string, name: string, unit: string, totalWeight: number }[]>(query, args);
   
-  const totalWeight = breakdown.reduce((sum, item) => sum + item.totalWeight, 0);
-  
+  const unitTotals = breakdown.reduce<Record<string, number>>((acc, item) => {
+    acc[item.unit] = (acc[item.unit] || 0) + item.totalWeight;
+    return acc;
+  }, {});
+
   return breakdown.map(item => ({
     ...item,
-    percentage: totalWeight > 0 ? (item.totalWeight / totalWeight) * 100 : 0
+    percentage: (unitTotals[item.unit] || 0) > 0 ? (item.totalWeight / unitTotals[item.unit]) * 100 : 0
   }));
 }

@@ -64,9 +64,13 @@ export async function createEvent(date: string): Promise<Event> {
     'INSERT INTO event (id, event_date, status) VALUES ($1, $2, $3)',
     [id, date, 'active']
   );
-  
-  await syncEventRates(id);
-  
+
+  try {
+    await syncEventRates(id);
+  } catch (err) {
+    console.warn('syncEventRates failed, event created without rates:', err);
+  }
+
   return { id, event_date: date, status: 'active' };
 }
 
