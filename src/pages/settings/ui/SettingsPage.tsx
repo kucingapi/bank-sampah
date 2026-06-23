@@ -387,6 +387,10 @@ export function SettingsPage() {
   const { task, setTask } = useBackupTask()
 
   useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     async function migrateBuyRate() {
       try {
         const db = await getDb()
