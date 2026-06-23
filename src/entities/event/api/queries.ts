@@ -68,7 +68,9 @@ export async function createEvent(date: string): Promise<Event> {
   try {
     await syncEventRates(id);
   } catch (err) {
-    console.warn('syncEventRates failed, event created without rates:', err);
+    console.error('syncEventRates failed:', err);
+    await db.execute('DELETE FROM event WHERE id = $1', [id]);
+    throw new Error('Gagal membuat sesi: tidak dapat menyinkronkan kategori nilai tukar. Pastikan kategori sudah dibuat terlebih dahulu.');
   }
 
   return { id, event_date: date, status: 'active' };
@@ -103,9 +105,29 @@ export async function updateEventStatus(id: string, status: 'active' | 'finished
   await db.execute('UPDATE event SET status = $1 WHERE id = $2', [status, id]);
 }
 
+async function ensureCategoryColumns() {
+  const db = await getDb();
+  try {
+    await db.execute('ALTER TABLE category ADD COLUMN buy_rate REAL NOT NULL DEFAULT 0');
+  } catch {
+    // Column already exists
+  }
+  try {
+    await db.execute('ALTER TABLE category ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // Column already exists
+  }
+  try {
+    await db.execute('ALTER TABLE category ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // Column already exists
+  }
+}
+
 export async function syncEventRates(eventId: string): Promise<void> {
   const db = await getDb();
   await ensureOutboundRateColumn();
+  await ensureCategoryColumns();
   await db.execute('DELETE FROM event_rate WHERE event_id = $1', [eventId]);
 
   const categories = await db.select<{id: string, default_rate: number, buy_rate: number, archived: number}[]>(
@@ -156,7 +178,7 @@ export async function getEventCategoryTotals(eventId: string): Promise<{category
   const res = await db.select<{category_id: string, total_weight: number, active_rate: number, outbound_rate: number}[]>(`
     SELECT
       di.category_id,
-      SUM(di.weight) as total_weight,
+      ROUND(SUM(di.weight), 2) as total_weight,
       er.active_rate,
       er.outbound_rate
     FROM deposit_item di

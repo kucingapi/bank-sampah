@@ -13,6 +13,15 @@ interface CategoryRow {
   default_vendor_id: number | null;
 }
 
+async function ensureArchivedColumn() {
+  const db = await getDb();
+  try {
+    await db.execute('ALTER TABLE category ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // Column already exists
+  }
+}
+
 async function ensureSortOrderColumn() {
   const db = await getDb();
   try {
@@ -42,6 +51,7 @@ async function ensureDefaultVendorIdColumn() {
 
 export async function listCategories(): Promise<Category[]> {
   const db = await getDb();
+  await ensureArchivedColumn();
   await ensureSortOrderColumn();
   await ensureDefaultVendorIdColumn();
   const rows = await db.select('SELECT * FROM category ORDER BY sort_order ASC, name ASC') as unknown as CategoryRow[];
@@ -60,6 +70,7 @@ export async function listCategories(): Promise<Category[]> {
 
 export async function createCategory(id: string, name: string, unit: string, defaultRate: number, buyRate: number, archived = false, defaultVendorId: number | null = null): Promise<Category> {
   const db = await getDb();
+  await ensureArchivedColumn();
   await ensureSortOrderColumn();
   await ensureDefaultVendorIdColumn();
 
@@ -101,5 +112,8 @@ export async function updateCategory(id: string, updates: Partial<Category>): Pr
 
 export async function deleteCategory(id: string): Promise<void> {
   const db = await getDb();
+  await db.execute('DELETE FROM event_rate WHERE category_id = $1', [id]);
+  await db.execute('DELETE FROM deposit_item WHERE category_id = $1', [id]);
+  await db.execute('DELETE FROM manifest_item WHERE category_id = $1', [id]);
   await db.execute('DELETE FROM category WHERE id = $1', [id]);
 }

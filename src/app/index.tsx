@@ -34,8 +34,8 @@ export function App() {
     switch (activeView) {
       case 'overview': return <OverviewPage />;
       case 'calendar': return <EventsCalendarPage />;
-      case 'event-details': return activeEventId ? <EventDetailsPage eventId={activeEventId} /> : <div className="p-12">Sesi Tidak Valid</div>;
-      case 'event-entry': return activeEventId ? <EventEntryPage eventId={activeEventId} depositId={activeDepositId} /> : <div className="p-12">Sesi Tidak Valid</div>;
+      case 'event-details': return activeEventId ? <EventDetailsPage key={activeEventId} eventId={activeEventId} /> : <div className="p-12">Sesi Tidak Valid</div>;
+      case 'event-entry': return activeEventId ? <EventEntryPage key={activeEventId} eventId={activeEventId} depositId={activeDepositId} /> : <div className="p-12">Sesi Tidak Valid</div>;
       case 'members':
       case 'member-directory': return <MemberDirectoryPage />;
       case 'members-payment': return <MemberPaymentPage />;

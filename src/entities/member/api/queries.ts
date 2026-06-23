@@ -126,7 +126,7 @@ export async function createMember(name: string, address?: string, phone?: strin
     );
   } else {
     result = await db.execute(
-      'INSERT INTO member (name, address, phone, join_date) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO member (name, address, phone, join_date) VALUES (?, ?, ?, ?)',
       [name, address || null, phone || null, joinDate]
     );
   }

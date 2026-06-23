@@ -271,6 +271,8 @@ export async function seedDeposits(eventId: string, memberIds: number[]) {
   const db = await getDb()
   const rand = seededRandom(99)
   const catIds = CATEGORIES.map(c => c.id)
+  const lainnyaRows = await db.select<{ id: number }[]>("SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1")
+  const defaultVendorId = lainnyaRows[0]?.id ?? null
   let depositCount = 0
 
   for (const memberId of memberIds) {
@@ -284,8 +286,8 @@ export async function seedDeposits(eventId: string, memberIds: number[]) {
     const time = `${dateStr}T${String(7 + Math.floor(rand() * 8)).padStart(2, '0')}:${String(Math.floor(rand() * 60)).padStart(2, '0')}:00`
 
     await db.execute(
-      'INSERT OR REPLACE INTO deposit (id, event_id, member_id, time, total_payout) VALUES (?, ?, ?, ?, ?)',
-      [depositId, eventId, memberId, time, 0]
+      'INSERT OR REPLACE INTO deposit (id, event_id, member_id, vendor_id, time, total_payout) VALUES (?, ?, ?, ?, ?, ?)',
+      [depositId, eventId, memberId, defaultVendorId, time, 0]
     )
 
     for (const catId of selectedCats) {
@@ -300,8 +302,8 @@ export async function seedDeposits(eventId: string, memberIds: number[]) {
       totalPayout += weight * rate
 
       await db.execute(
-        'INSERT OR REPLACE INTO deposit_item (deposit_id, category_id, weight) VALUES (?, ?, ?)',
-        [depositId, catId, weight]
+        'INSERT OR REPLACE INTO deposit_item (deposit_id, category_id, vendor_id, weight) VALUES (?, ?, ?, ?)',
+        [depositId, catId, defaultVendorId, weight]
       )
     }
 

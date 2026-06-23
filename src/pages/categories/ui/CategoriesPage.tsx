@@ -227,8 +227,17 @@ export function CategoriesPage() {
   // Sync localOrder if categories change externally (e.g., after create/delete)
   useEffect(() => {
     const currentOrder = categories.map(c => c.id)
-    const hasReorder = localOrder.length > 0 && JSON.stringify(localOrder) !== JSON.stringify(currentOrder)
-    if (!hasReorder && JSON.stringify(localOrder) !== JSON.stringify(currentOrder)) {
+    const currentSet = new Set(currentOrder)
+    const localSet = new Set(localOrder)
+
+    const hasNew = currentOrder.some((id) => !localSet.has(id))
+    const hasRemoved = localOrder.some((id) => !currentSet.has(id))
+
+    if (hasNew || hasRemoved) {
+      const filtered = localOrder.filter((id) => currentSet.has(id))
+      const newIds = currentOrder.filter((id) => !localSet.has(id))
+      setLocalOrder([...filtered, ...newIds])
+    } else if (JSON.stringify(localOrder) !== JSON.stringify(currentOrder)) {
       setLocalOrder(currentOrder)
     }
   }, [categories])
@@ -755,6 +764,7 @@ export function CategoriesPage() {
             <AlertDialogTitle>Hapus Kategori</AlertDialogTitle>
             <AlertDialogDescription>
               Hapus <strong>{categories.find((c) => c.id === categoryToDelete)?.name}</strong> secara permanen dari daftar master?
+              Semua data terkait (event rate, deposit item, manifest item) juga akan dihapus.
               Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>

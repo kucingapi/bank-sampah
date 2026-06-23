@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from "react"
-import { Hash, AlertCircle } from "lucide-react"
-import { useCategories } from "@/entities/category/api/hooks"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { Hash, AlertCircle, Truck } from "lucide-react"
 import { formatCurrency } from "@/shared/lib/format"
 import {
   CommandDialog,
@@ -12,19 +11,36 @@ import {
 } from "@/shared/ui/ui/command"
 import { Badge } from "@/shared/ui/ui/badge"
 import { Separator } from "@/shared/ui/ui/separator"
+import type { Category } from "@/entities/category/model/types"
+import type { Vendor } from "@/entities/vendor/model/types"
+
+export interface CategoryRowEntry {
+  id: string
+  categoryId: string
+  vendorId: number | null
+}
 
 interface CategoryCommandDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (categoryId: string) => void
+  onSelect: (rowId: string) => void
   showNoMemberWarning?: boolean
+  rows: CategoryRowEntry[]
+  categories: Category[]
+  vendors: Vendor[]
 }
 
-export function CategoryCommandDialogComponent({ open, onOpenChange, onSelect, showNoMemberWarning }: CategoryCommandDialogProps) {
-  const { data: categories = [] } = useCategories()
+export function CategoryCommandDialogComponent({
+  open,
+  onOpenChange,
+  onSelect,
+  showNoMemberWarning,
+  rows,
+  categories,
+  vendors,
+}: CategoryCommandDialogProps) {
   const [search, setSearch] = useState("")
 
-  // Reset search and warning when dialog opens
   useEffect(() => {
     if (open) {
       setSearch("")
@@ -32,29 +48,58 @@ export function CategoryCommandDialogComponent({ open, onOpenChange, onSelect, s
   }, [open])
 
   const handleSelect = useCallback(
-    (categoryId: string) => {
-      onSelect(categoryId)
+    (rowId: string) => {
+      onSelect(rowId)
       onOpenChange(false)
     },
     [onSelect, onOpenChange]
   )
 
-  const activeCategories = categories
-    .filter((c) => c.status === "active" || c.status === "")
-    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+  const categoryById = useMemo(() => {
+    const map = new Map<string, Category>()
+    categories.forEach((c) => map.set(c.id, c))
+    return map
+  }, [categories])
+
+  const vendorById = useMemo(() => {
+    const map = new Map<number, string>()
+    vendors.forEach((v) => map.set(v.id, v.name))
+    return map
+  }, [vendors])
+
+  const entries = useMemo(() => {
+    return rows
+      .map((row) => {
+        const category = categoryById.get(row.categoryId)
+        if (!category) return null
+        return {
+          rowId: row.id,
+          categoryId: row.categoryId,
+          categoryName: category.name,
+          unit: category.unit,
+          defaultRate: category.default_rate,
+          vendorName: row.vendorId != null ? vendorById.get(row.vendorId) ?? null : null,
+        }
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null)
+      .sort((a, b) => a.categoryName.localeCompare(b.categoryName))
+  }, [rows, categoryById, vendorById])
 
   const filtered = search
-    ? activeCategories.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.id.toLowerCase().includes(search.toLowerCase())
-      )
-    : activeCategories
+    ? entries.filter((e) => {
+        const q = search.toLowerCase()
+        return (
+          e.categoryName.toLowerCase().includes(q) ||
+          e.categoryId.toLowerCase().includes(q) ||
+          (e.vendorName?.toLowerCase().includes(q) ?? false)
+        )
+      })
+    : entries
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Cari kategori…"
+        placeholder="Cari baris setoran…"
         value={search}
         onValueChange={setSearch}
       />
@@ -75,22 +120,28 @@ export function CategoryCommandDialogComponent({ open, onOpenChange, onSelect, s
         </>
       )}
       <CommandList>
-        <CommandEmpty>Tidak ada kategori ditemukan.</CommandEmpty>
-        <CommandGroup heading="Kategori Setoran">
-          {filtered.map((cat) => (
+        <CommandEmpty>Tidak ada baris ditemukan.</CommandEmpty>
+        <CommandGroup heading="Baris Setoran">
+          {filtered.map((entry) => (
             <CommandItem
-              key={cat.id}
-              value={`${cat.id} ${cat.name}`}
-              onSelect={() => handleSelect(cat.id)}
+              key={entry.rowId}
+              value={`${entry.categoryId} ${entry.categoryName} ${entry.vendorName ?? ""}`}
+              onSelect={() => handleSelect(entry.rowId)}
               className="cursor-pointer"
             >
               <Hash className="size-4 text-muted-foreground/50 shrink-0" />
-              <span className="flex-1 font-medium">{cat.name}</span>
+              <span className="flex-1 font-medium">{entry.categoryName}</span>
+              {entry.vendorName && (
+                <Badge variant="secondary" className="text-[10px] font-medium gap-1 px-1.5 py-0 rounded-md shrink-0">
+                  <Truck className="size-2.5" />
+                  {entry.vendorName}
+                </Badge>
+              )}
               <Badge variant="outline" className="text-[11px] font-mono tabular-nums">
-                {cat.unit}
+                {entry.unit}
               </Badge>
               <span className="text-xs text-muted-foreground/60 font-mono ml-1">
-                {formatCurrency(cat.default_rate)}
+                {formatCurrency(entry.defaultRate)}
               </span>
             </CommandItem>
           ))}

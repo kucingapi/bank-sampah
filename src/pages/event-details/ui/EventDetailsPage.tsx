@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle, X, Trash2 } from "lucide-react"
+import { ArrowLeft, RefreshCw, Plus, FileText, CheckCircle2, Pencil, DollarSign, Archive, RotateCcw, Save, AlertCircle, X, Trash2, Truck } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { useQueryClient } from "@tanstack/react-query"
 import {
@@ -34,7 +34,6 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/ui/alert-dialog"
 import { EditDepositModal } from "@/features/edit-deposit/ui/EditDepositModal"
-import { AddDepositModal } from "@/features/add-deposit/ui/AddDepositModal"
 import { AllRatesModal } from "@/features/edit-deposit/ui/AllRatesModal"
 import { cn } from "@/shared/lib/utils"
 
@@ -44,6 +43,7 @@ interface Props {
 
 interface DepositWithDetails extends Deposit {
   memberName: string
+  vendorName: string | null
   memberId: number
   itemCount: number
   items: { category_id: string; category_name: string; weight: number; payout: number; unit: string }[]
@@ -127,7 +127,6 @@ export function EventDetailsPage({ eventId }: Props) {
   const [showDeleteWarning, setShowDeleteWarning] = useState(false)
   const [showActiveSessionConflict, setShowActiveSessionConflict] = useState(false)
   const [editingDepositId, setEditingDepositId] = useState<string | null>(null)
-  const [showAddDeposit, setShowAddDeposit] = useState(false)
   const [localRates, setLocalRates] = useState<Record<string, { buyRate: number; sellRate: number; active: number }>>({})
   const [savedRates, setSavedRates] = useState<Record<string, { buyRate: number; sellRate: number; active: number }>>({})
   const [ratesLoaded, setRatesLoaded] = useState(false)
@@ -200,7 +199,9 @@ export function EventDetailsPage({ eventId }: Props) {
   }
 
   const handleAddDeposit = () => {
-    setShowAddDeposit(true)
+    window.dispatchEvent(
+      new CustomEvent("navigate", { detail: { view: "event-entry", eventId } })
+    )
   }
 
   const handleEditDeposit = useCallback((depositId: string) => {
@@ -210,6 +211,7 @@ export function EventDetailsPage({ eventId }: Props) {
   const depositsWithDetails = deposits.map(dd => ({
     ...dd,
     itemCount: (dd as any).itemCount || 0,
+    vendorName: (dd as any).vendorName || null,
     items: (dd as any).items || []
   })) as DepositWithDetails[]
 
@@ -265,6 +267,35 @@ export function EventDetailsPage({ eventId }: Props) {
           {row.original.memberName}
         </div>
       ),
+    },
+    {
+      accessorKey: "vendorName",
+      header: "Vendor",
+      cell: ({ row }) => {
+        const vendorName = row.original.vendorName
+        if (!vendorName) {
+          return <span className="text-muted-foreground/40 text-xs">—</span>
+        }
+        const names = vendorName.split(", ").map((n) => n.trim()).filter(Boolean)
+        if (names.length === 1) {
+          return (
+            <div className="flex items-center gap-1.5">
+              <Truck className="size-3 text-muted-foreground/60" />
+              <span className="text-xs font-medium">{names[0]}</span>
+            </div>
+          )
+        }
+        return (
+          <div className="flex items-center gap-1 flex-wrap">
+            {names.map((n) => (
+              <Badge key={n} variant="outline" className="text-[10px] font-medium px-1.5 py-0 rounded-md gap-1">
+                <Truck className="size-2.5 text-muted-foreground/60" />
+                {n}
+              </Badge>
+            ))}
+          </div>
+        )
+      },
     },
     {
       accessorKey: "items",
@@ -512,7 +543,7 @@ export function EventDetailsPage({ eventId }: Props) {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleSyncRates}
-              disabled={syncRates.isPending || !isEditingRates}
+              disabled={syncRates.isPending}
               variant="outline"
               size="sm"
             >
@@ -543,6 +574,24 @@ export function EventDetailsPage({ eventId }: Props) {
           </div>
         </div>
           <div className="p-4">
+            {ratesData && ratesData.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <DollarSign className="size-8 text-muted-foreground mb-3" />
+                <p className="text-sm font-medium text-foreground">Belum ada kategori nilai tukar</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">
+                  Tambahkan kategori di halaman Skema Kategori, lalu sinkronisasi harga dasar.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncRates}
+                  disabled={syncRates.isPending}
+                >
+                  <RefreshCw className={syncRates.isPending ? "animate-spin size-3 mr-2" : "size-3 mr-2"} />
+                  Sinkronisasi Sekarang
+                </Button>
+              </div>
+            )}
             {/* Horizontal scrollable single row */}
             <div className="flex gap-4 overflow-x-auto scrollbar-thin pb-2">
               {ratesData?.map(rate => {
@@ -724,12 +773,6 @@ export function EventDetailsPage({ eventId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AddDepositModal
-        isOpen={showAddDeposit}
-        onClose={() => setShowAddDeposit(false)}
-        eventId={eventId}
-      />
 
       <EditDepositModal
         isOpen={!!editingDepositId}

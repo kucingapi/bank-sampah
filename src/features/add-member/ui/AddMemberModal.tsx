@@ -58,7 +58,21 @@ export function AddMemberModal({ isOpen, onClose, onSuccess }: AddMemberModalPro
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Gagal membuat anggota');
+      console.error('[AddMemberModal] Gagal membuat anggota:', {
+        name: err?.name,
+        message: err?.message,
+        stack: err?.stack,
+        cause: err?.cause,
+        context: {
+          memberId: memberId.trim() || '(auto)',
+          name: name.trim(),
+          hasAddress: !!address.trim(),
+          hasPhone: !!phone.trim(),
+        },
+        raw: err,
+      });
+      const detail = err?.message ? `: ${err.message}` : '';
+      setError(`Gagal membuat anggota${detail}`);
     }
   };
 

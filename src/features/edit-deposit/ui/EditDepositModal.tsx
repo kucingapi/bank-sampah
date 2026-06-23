@@ -1,7 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/ui/dialog"
 import { DepositForm, type DepositFormRef } from "@/features/event-entry/ui/DepositForm"
-import { CategoryCommandDialogComponent } from "@/features/event-entry/ui/CategoryCommandDialog"
+import {
+  CategoryCommandDialogComponent,
+  type CategoryRowEntry,
+} from "@/features/event-entry/ui/CategoryCommandDialog"
+import { useCategories } from "@/entities/category/api/hooks"
+import { useVendors } from "@/entities/vendor/api/hooks"
 
 interface EditDepositModalProps {
   isOpen: boolean
@@ -12,8 +17,18 @@ interface EditDepositModalProps {
 
 export function EditDepositModal({ isOpen, onClose, eventId, depositId }: EditDepositModalProps) {
   const formRef = useRef<DepositFormRef>(null)
+  const { data: categories = [] } = useCategories()
+  const { data: vendors = [] } = useVendors()
   const [commandOpen, setCommandOpen] = useState(false)
+  const [commandRows, setCommandRows] = useState<CategoryRowEntry[]>([])
   const [showNoMemberWarning, setShowNoMemberWarning] = useState(false)
+
+  const refreshCommandRows = useCallback(() => {
+    const rows = formRef.current?.getRows() ?? []
+    setCommandRows(
+      rows.map((r) => ({ id: r.id, categoryId: r.categoryId, vendorId: r.vendorId }))
+    )
+  }, [])
 
   // Global keyboard shortcut: Ctrl+Shift+F or Ctrl+/
   useEffect(() => {
@@ -26,17 +41,18 @@ export function EditDepositModal({ isOpen, onClose, eventId, depositId }: EditDe
           setCommandOpen(true)
         } else {
           setShowNoMemberWarning(false)
+          refreshCommandRows()
           setCommandOpen((prev) => !prev)
         }
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen])
+  }, [isOpen, refreshCommandRows])
 
-  const handleCategorySelect = useCallback(
-    (categoryId: string) => {
-      formRef.current?.focusCategory(categoryId)
+  const handleRowSelect = useCallback(
+    (rowId: string) => {
+      formRef.current?.focusRow(rowId)
     },
     []
   )
@@ -60,10 +76,14 @@ export function EditDepositModal({ isOpen, onClose, eventId, depositId }: EditDe
         open={commandOpen}
         onOpenChange={(open) => {
           setCommandOpen(open)
+          if (open) refreshCommandRows()
           if (!open) setShowNoMemberWarning(false)
         }}
-        onSelect={handleCategorySelect}
+        onSelect={handleRowSelect}
         showNoMemberWarning={showNoMemberWarning}
+        rows={commandRows}
+        categories={categories}
+        vendors={vendors}
       />
     </Dialog>
   )

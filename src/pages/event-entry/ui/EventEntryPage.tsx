@@ -2,7 +2,12 @@ import { useRef, useState, useEffect, useCallback } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/shared/ui/ui/button"
 import { DepositForm, type DepositFormRef } from "@/features/event-entry/ui/DepositForm"
-import { CategoryCommandDialogComponent } from "@/features/event-entry/ui/CategoryCommandDialog"
+import {
+  CategoryCommandDialogComponent,
+  type CategoryRowEntry,
+} from "@/features/event-entry/ui/CategoryCommandDialog"
+import { useCategories } from "@/entities/category/api/hooks"
+import { useVendors } from "@/entities/vendor/api/hooks"
 
 interface Props {
   eventId: string
@@ -11,31 +16,41 @@ interface Props {
 
 export function EventEntryPage({ eventId, depositId }: Props) {
   const formRef = useRef<DepositFormRef>(null)
+  const { data: categories = [] } = useCategories()
+  const { data: vendors = [] } = useVendors()
   const [commandOpen, setCommandOpen] = useState(false)
+  const [commandRows, setCommandRows] = useState<CategoryRowEntry[]>([])
   const [showNoMemberWarning, setShowNoMemberWarning] = useState(false)
+
+  const refreshCommandRows = useCallback(() => {
+    const rows = formRef.current?.getRows() ?? []
+    setCommandRows(
+      rows.map((r) => ({ id: r.id, categoryId: r.categoryId, vendorId: r.vendorId }))
+    )
+  }, [])
 
   // Global keyboard shortcut: Ctrl+Shift+F or Ctrl+/
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey && e.shiftKey && e.key === "F") || (e.ctrlKey && e.code === "Slash")) {
         e.preventDefault()
-        // Guard: check if member is selected
         if (!formRef.current?.hasSelectedMember()) {
           setShowNoMemberWarning(true)
           setCommandOpen(true)
         } else {
           setShowNoMemberWarning(false)
+          refreshCommandRows()
           setCommandOpen((prev) => !prev)
         }
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  }, [refreshCommandRows])
 
-  const handleCategorySelect = useCallback(
-    (categoryId: string) => {
-      formRef.current?.focusCategory(categoryId)
+  const handleRowSelect = useCallback(
+    (rowId: string) => {
+      formRef.current?.focusRow(rowId)
     },
     []
   )
@@ -52,7 +67,7 @@ export function EventEntryPage({ eventId, depositId }: Props) {
     <div className="p-12 mx-auto flex flex-col gap-10 animate-in fade-in duration-500 ease-editorial">
       {/* ── Header ── */}
       <header className="flex items-center gap-5 border-b border-border pb-5">
-        <Button variant="ghost" size="icon" onClick={handleBack} data-icon="inline-start">
+        <Button variant="ghost" size="icon" onClick={handleBack} title="Kembali ke detail sesi">
           <ArrowLeft />
         </Button>
         <div>
@@ -71,10 +86,14 @@ export function EventEntryPage({ eventId, depositId }: Props) {
         open={commandOpen}
         onOpenChange={(open) => {
           setCommandOpen(open)
+          if (open) refreshCommandRows()
           if (!open) setShowNoMemberWarning(false)
         }}
-        onSelect={handleCategorySelect}
+        onSelect={handleRowSelect}
         showNoMemberWarning={showNoMemberWarning}
+        rows={commandRows}
+        categories={categories}
+        vendors={vendors}
       />
     </div>
   )

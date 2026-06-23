@@ -34,7 +34,7 @@ export function useCreateDeposit() {
       eventId: string;
       memberId: number;
       totalPayout: number;
-      items: { categoryId: string; weight: number }[];
+      items: { categoryId: string; weight: number; vendorId: number }[];
     }) => createDeposit(eventId, memberId, totalPayout, items),
     onSuccess: (_, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.deposits.byEvent(eventId) });
@@ -58,7 +58,7 @@ export function useUpdateDeposit() {
       eventId: string;
       memberId: number;
       totalPayout: number;
-      items: { categoryId: string; weight: number }[];
+      items: { categoryId: string; weight: number; vendorId: number }[];
     }) => updateDeposit(depositId, memberId, totalPayout, items),
     onSuccess: (_, { depositId, eventId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.deposits.detail(depositId) });

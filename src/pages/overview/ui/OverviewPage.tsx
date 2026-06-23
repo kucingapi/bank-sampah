@@ -91,14 +91,14 @@ export function OverviewPage() {
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-medium tracking-tight">
-                {safeStats.totalKg.toLocaleString("id-ID")}
+                {safeStats.totalKg.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <span className="text-muted-foreground font-medium">kg</span>
             </div>
             {safeStats.totalPc > 0 && (
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-2xl font-medium tracking-tight text-muted-foreground">
-                  {safeStats.totalPc.toLocaleString("id-ID")}
+                  {safeStats.totalPc.toLocaleString("id-ID", { maximumFractionDigits: 0 })}
                 </span>
                 <span className="text-muted-foreground font-medium">pc</span>
               </div>
@@ -165,7 +165,10 @@ export function OverviewPage() {
                   <span className="font-medium">{item.name}</span>
                   <div className="flex gap-4">
                     <span className="text-muted-foreground">
-                      {item.totalWeight.toLocaleString("id-ID")} {item.unit}
+                      {item.totalWeight.toLocaleString("id-ID", {
+                        minimumFractionDigits: item.unit === "pc" ? 0 : 2,
+                        maximumFractionDigits: item.unit === "pc" ? 0 : 2,
+                      })} {item.unit}
                     </span>
                     <Badge variant="secondary" className="w-12 justify-center">
                       {item.percentage.toFixed(1)}%

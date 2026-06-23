@@ -115,6 +115,7 @@ pub fn run() {
               id TEXT PRIMARY KEY,
               event_id TEXT NOT NULL,
               member_id INTEGER NOT NULL,
+              vendor_id INTEGER DEFAULT NULL,
               time TEXT NOT NULL,
               total_payout REAL NOT NULL DEFAULT 0,
               FOREIGN KEY (event_id) REFERENCES event(id),
@@ -163,6 +164,39 @@ pub fn run() {
             INSERT OR IGNORE INTO category (id, name, unit, default_rate, status, archived) VALUES ('c4', 'C4', 'kg', 0, 'active', 0);
             INSERT OR IGNORE INTO category (id, name, unit, default_rate, status, archived) VALUES ('p38', 'P38', 'kg', 1500, 'active', 0);
           ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "add vendor_id to deposit table",
+            sql: "
+              ALTER TABLE deposit ADD COLUMN vendor_id INTEGER DEFAULT NULL;
+              UPDATE deposit SET vendor_id = (SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1) WHERE vendor_id IS NULL;
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 3,
+            description: "add vendor_id to deposit_item and change PK",
+            sql: "
+              ALTER TABLE deposit_item ADD COLUMN vendor_id INTEGER DEFAULT NULL;
+              UPDATE deposit_item SET vendor_id = (SELECT vendor_id FROM deposit WHERE deposit.id = deposit_item.deposit_id) WHERE vendor_id IS NULL;
+              UPDATE deposit_item SET vendor_id = (SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1) WHERE vendor_id IS NULL;
+              CREATE TABLE deposit_item_new (
+                deposit_id TEXT NOT NULL,
+                category_id TEXT NOT NULL,
+                vendor_id INTEGER NOT NULL,
+                weight REAL NOT NULL,
+                PRIMARY KEY (deposit_id, category_id, vendor_id),
+                FOREIGN KEY (deposit_id) REFERENCES deposit(id),
+                FOREIGN KEY (category_id) REFERENCES category(id),
+                FOREIGN KEY (vendor_id) REFERENCES vendor(id)
+              );
+              INSERT INTO deposit_item_new (deposit_id, category_id, vendor_id, weight)
+                SELECT deposit_id, category_id, vendor_id, weight FROM deposit_item;
+              DROP TABLE deposit_item;
+              ALTER TABLE deposit_item_new RENAME TO deposit_item;
+            ",
             kind: MigrationKind::Up,
         },
     ];

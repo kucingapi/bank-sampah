@@ -4,6 +4,7 @@ import { createClient } from "@libsql/client/web"
 import { toast } from "sonner"
 import { HardDrive, Download, Upload, RotateCcw, AlertTriangle, CloudUpload, CloudDownload, Loader2, XCircle, Database } from "lucide-react"
 import { getDb } from "@/shared/api"
+import { queryClient } from "@/shared/api/query-client"
 import { seedBankSampah } from "@/shared/lib/seed"
 import { getTursoConfig, setTursoConfig } from "@/shared/lib/db-config"
 import { useBackupTask, type BackupTask, clearTask } from "@/shared/context/backup-context"
@@ -54,8 +55,8 @@ export const TABLE_DEFINITIONS = [
   { name: "vendor", label: "Vendor", cols: "id, name" },
   { name: "event", label: "Event", cols: "id, event_date, status, notes" },
   { name: "event_rate", label: "Event Rate", cols: "event_id, category_id, active_rate, outbound_rate, is_active" },
-  { name: "deposit", label: "Deposit", cols: "id, event_id, member_id, time, total_payout" },
-  { name: "deposit_item", label: "Deposit Item", cols: "deposit_id, category_id, weight" },
+  { name: "deposit", label: "Deposit", cols: "id, event_id, member_id, vendor_id, time, total_payout" },
+  { name: "deposit_item", label: "Deposit Item", cols: "deposit_id, category_id, vendor_id, weight" },
   { name: "vendor_manifest", label: "Vendor Manifest", cols: "id, event_id, vendor_id" },
   { name: "manifest_item", label: "Manifest Item", cols: "manifest_id, category_id, outbound_rate" },
   { name: "semester_savings", label: "Semester Savings", cols: "id, member_id, semester_label, saved_amount, is_saved, rolled_from" },
@@ -70,8 +71,8 @@ const CREATE_TABLES_SQL = [
   `CREATE TABLE IF NOT EXISTS vendor (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`,
   `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', notes TEXT)`,
   `CREATE TABLE IF NOT EXISTS event_rate (event_id TEXT NOT NULL, category_id TEXT NOT NULL, active_rate REAL NOT NULL, outbound_rate REAL NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (event_id, category_id))`,
-  `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
-  `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id))`,
+  `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, vendor_id INTEGER DEFAULT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, vendor_id INTEGER NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id, vendor_id))`,
   `CREATE TABLE IF NOT EXISTS vendor_manifest (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, vendor_id INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS manifest_item (manifest_id TEXT NOT NULL, category_id TEXT NOT NULL, outbound_rate REAL NOT NULL, PRIMARY KEY (manifest_id, category_id))`,
   `CREATE TABLE IF NOT EXISTS semester_savings (id TEXT PRIMARY KEY, member_id INTEGER NOT NULL, semester_label TEXT NOT NULL, saved_amount REAL NOT NULL DEFAULT 0, is_saved INTEGER NOT NULL DEFAULT 0, rolled_from TEXT)`,
@@ -117,8 +118,55 @@ async function getTursoStats(tursoUrl: string, tursoToken: string): Promise<Turs
 
 async function ensureTursoTables(turso: ReturnType<typeof createClient>): Promise<void> {
   for (const sql of CREATE_TABLES_SQL) {
-    await turso.execute(sql)
+    await turso.execute(sql).catch(() => {})
   }
+  await ensureTursoDepositVendorId(turso).catch(() => {})
+  await ensureTursoDepositItemVendorId(turso).catch(() => {})
+}
+
+async function ensureTursoDepositItemVendorId(turso: ReturnType<typeof createClient>): Promise<void> {
+  const colsRes = await turso.execute("PRAGMA table_info(deposit_item)")
+  const cols = (colsRes.rows ?? []) as unknown as { name: string; pk: number }[]
+  const hasVendorId = cols.some(c => c.name === 'vendor_id')
+  if (!hasVendorId) {
+    await turso.execute('ALTER TABLE deposit_item ADD COLUMN vendor_id INTEGER DEFAULT NULL')
+  }
+  await turso.execute({
+    sql: `UPDATE deposit_item SET vendor_id = (SELECT vendor_id FROM deposit WHERE deposit.id = deposit_item.deposit_id) WHERE vendor_id IS NULL`,
+  })
+  await turso.execute({
+    sql: "UPDATE deposit_item SET vendor_id = (SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1) WHERE vendor_id IS NULL",
+  })
+  const refreshed = await turso.execute("PRAGMA table_info(deposit_item)")
+  const refreshedCols = (refreshed.rows ?? []) as unknown as { name: string; pk: number }[]
+  const vendorIdInPk = refreshedCols.some(c => c.name === 'vendor_id' && c.pk > 0)
+  if (!vendorIdInPk) {
+    await turso.execute(`
+      CREATE TABLE deposit_item_new (
+        deposit_id TEXT NOT NULL,
+        category_id TEXT NOT NULL,
+        vendor_id INTEGER NOT NULL,
+        weight REAL NOT NULL,
+        PRIMARY KEY (deposit_id, category_id, vendor_id)
+      )
+    `)
+    await turso.execute({
+      sql: `INSERT INTO deposit_item_new (deposit_id, category_id, vendor_id, weight) SELECT deposit_id, category_id, vendor_id, weight FROM deposit_item`,
+    })
+    await turso.execute(`DROP TABLE deposit_item`)
+    await turso.execute(`ALTER TABLE deposit_item_new RENAME TO deposit_item`)
+  }
+}
+
+async function ensureTursoDepositVendorId(turso: ReturnType<typeof createClient>): Promise<void> {
+  const colsRes = await turso.execute("PRAGMA table_info(deposit)")
+  const cols = (colsRes.rows ?? []) as unknown as { name: string }[]
+  if (!cols.some(c => c.name === 'vendor_id')) {
+    await turso.execute('ALTER TABLE deposit ADD COLUMN vendor_id INTEGER DEFAULT NULL').catch(() => {})
+  }
+  await turso.execute({
+    sql: "UPDATE deposit SET vendor_id = (SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1) WHERE vendor_id IS NULL",
+  }).catch(() => {})
 }
 
 const CREATE_TABLES_LOCAL = [
@@ -127,8 +175,8 @@ const CREATE_TABLES_LOCAL = [
   `CREATE TABLE IF NOT EXISTS vendor (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`,
   `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', notes TEXT)`,
   `CREATE TABLE IF NOT EXISTS event_rate (event_id TEXT NOT NULL, category_id TEXT NOT NULL, active_rate REAL NOT NULL, outbound_rate REAL NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (event_id, category_id))`,
-  `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
-  `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id))`,
+  `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, vendor_id INTEGER DEFAULT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, vendor_id INTEGER NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id, vendor_id))`,
   `CREATE TABLE IF NOT EXISTS vendor_manifest (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, vendor_id INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS manifest_item (manifest_id TEXT NOT NULL, category_id TEXT NOT NULL, outbound_rate REAL NOT NULL, PRIMARY KEY (manifest_id, category_id))`,
   `CREATE TABLE IF NOT EXISTS semester_savings (id TEXT PRIMARY KEY, member_id INTEGER NOT NULL, semester_label TEXT NOT NULL, saved_amount REAL NOT NULL DEFAULT 0, is_saved INTEGER NOT NULL DEFAULT 0, rolled_from TEXT)`,
@@ -139,6 +187,19 @@ async function ensureLocalTables(db: Awaited<ReturnType<typeof getDb>>): Promise
     await db.execute(sql).catch(() => {})
   }
 }
+
+const RECREATE_TABLES_SQL = [
+  `CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, address TEXT, phone TEXT, join_date TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS category (id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, default_rate REAL NOT NULL, buy_rate REAL NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active', archived INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0, default_vendor_id INTEGER DEFAULT NULL)`,
+  `CREATE TABLE IF NOT EXISTS vendor (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`,
+  `CREATE TABLE IF NOT EXISTS event (id TEXT PRIMARY KEY, event_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', notes TEXT)`,
+  `CREATE TABLE IF NOT EXISTS event_rate (event_id TEXT NOT NULL, category_id TEXT NOT NULL, active_rate REAL NOT NULL, outbound_rate REAL NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (event_id, category_id))`,
+  `CREATE TABLE IF NOT EXISTS deposit (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, member_id INTEGER NOT NULL, vendor_id INTEGER DEFAULT NULL, time TEXT NOT NULL, total_payout REAL NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS deposit_item (deposit_id TEXT NOT NULL, category_id TEXT NOT NULL, vendor_id INTEGER NOT NULL, weight REAL NOT NULL, PRIMARY KEY (deposit_id, category_id, vendor_id))`,
+  `CREATE TABLE IF NOT EXISTS vendor_manifest (id TEXT PRIMARY KEY, event_id TEXT NOT NULL, vendor_id INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS manifest_item (manifest_id TEXT NOT NULL, category_id TEXT NOT NULL, outbound_rate REAL NOT NULL, PRIMARY KEY (manifest_id, category_id))`,
+  `CREATE TABLE IF NOT EXISTS semester_savings (id TEXT PRIMARY KEY, member_id INTEGER NOT NULL, semester_label TEXT NOT NULL, saved_amount REAL NOT NULL DEFAULT 0, is_saved INTEGER NOT NULL DEFAULT 0, rolled_from TEXT)`,
+]
 
 // ── Push / Pull ──
 
@@ -164,6 +225,9 @@ async function pushToTurso(
 
   const backupId = `local-${new Date().toISOString()}`
 
+  // Cache of deposit_id -> vendor_id from the deposit table
+  const depositVendorMap = new Map<string, number | null>()
+
   for (const table of tablesToPush) {
     setTask({ type: "push", status: "running", message: `Mengekspor ${table.label}...`, startedAt: Date.now() })
     const colArr = table.cols.split(", ")
@@ -171,10 +235,37 @@ async function pushToTurso(
     const rows = await localDb.select<any[]>(`SELECT * FROM ${table.name}`)
     for (const row of rows) {
       const args = colArr.map(c => row[c] ?? null)
+
+      // Defensive backfill: deposit_item.vendor_id is NOT NULL on Turso.
+      if (table.name === 'deposit_item') {
+        const vendorIdx = colArr.indexOf('vendor_id')
+        const depositIdIdx = colArr.indexOf('deposit_id')
+        if (vendorIdx !== -1 && (args[vendorIdx] === null || args[vendorIdx] === undefined)) {
+          const depositId = depositIdIdx !== -1 ? String(args[depositIdIdx] ?? '') : ''
+          let vendorId = depositId ? depositVendorMap.get(depositId) ?? null : null
+          if (vendorId == null) {
+            const fallback = await localDb.select<{ id: number }[]>(
+              "SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1"
+            )
+            vendorId = fallback[0]?.id ?? null
+          }
+          args[vendorIdx] = vendorId
+        }
+      }
+
       await turso.execute({
         sql: `INSERT OR REPLACE INTO ${table.name} (${colArr.join(", ")}) VALUES (${placeholders})`,
         args,
       })
+
+      if (table.name === 'deposit') {
+        const idIdx = colArr.indexOf('id')
+        const vendorIdx = colArr.indexOf('vendor_id')
+        const id = idIdx !== -1 ? String(args[idIdx] ?? '') : ''
+        if (id) {
+          depositVendorMap.set(id, vendorIdx !== -1 ? (args[vendorIdx] as number | null) : null)
+        }
+      }
     }
   }
 
@@ -201,24 +292,61 @@ async function pullFromTurso(
   setTask({ type: "pull", status: "running", message: "Memastikan tabel lokal ada...", startedAt: Date.now() })
   await ensureLocalTables(localDb)
 
+  // Ensure Turso schema is current so we can read with the new column layout
+  setTask({ type: "pull", status: "running", message: "Memastikan skema Turso...", startedAt: Date.now() })
+  await ensureTursoTables(turso)
+
   setTask({ type: "pull", status: "running", message: "Menghapus data tabel terpilih di lokal...", startedAt: Date.now() })
   // Clear only selected tables locally
   for (const table of tablesToPull) {
     await localDb.execute(`DELETE FROM ${table.name}`)
   }
 
+  // Cache of deposit_id -> vendor_id from the freshly-pulled deposit table
+  const depositVendorMap = new Map<string, number | null>()
+
   for (const table of tablesToPull) {
     setTask({ type: "pull", status: "running", message: `Mengimpor ${table.label}...`, startedAt: Date.now() })
     const colArr = table.cols.split(", ")
     const placeholders = colArr.map(() => "?").join(", ")
     const tursoResult = await turso.execute(`SELECT * FROM ${table.name}`)
-    const rows = tursoResult?.rows ?? []
+    const rows = (tursoResult?.rows ?? []) as Record<string, unknown>[]
     for (const row of rows) {
       const args = colArr.map(c => row[c] ?? null)
+
+      // Defensive backfill: deposit_item.vendor_id is NOT NULL on local;
+      // if the source row lacks it (old Turso schema or null values),
+      // borrow from the parent deposit.vendor_id, then fall back to 'Lainnya'.
+      if (table.name === 'deposit_item') {
+        const vendorIdx = colArr.indexOf('vendor_id')
+        const depositIdIdx = colArr.indexOf('deposit_id')
+        if (vendorIdx !== -1 && (args[vendorIdx] === null || args[vendorIdx] === undefined)) {
+          const depositId = depositIdIdx !== -1 ? String(args[depositIdIdx] ?? '') : ''
+          let vendorId = depositId ? depositVendorMap.get(depositId) ?? null : null
+          if (vendorId == null) {
+            const fallback = await turso.execute({
+              sql: "SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1",
+            })
+            const first = ((fallback.rows ?? [])[0] ?? null) as unknown as { id: number } | null
+            vendorId = first?.id ?? null
+          }
+          args[vendorIdx] = vendorId
+        }
+      }
+
       await localDb.execute(
         `INSERT OR REPLACE INTO ${table.name} (${colArr.join(", ")}) VALUES (${placeholders})`,
         args
       )
+
+      if (table.name === 'deposit') {
+        const idIdx = colArr.indexOf('id')
+        const vendorIdx = colArr.indexOf('vendor_id')
+        const id = idIdx !== -1 ? String(args[idIdx] ?? '') : ''
+        if (id) {
+          depositVendorMap.set(id, vendorIdx !== -1 ? (args[vendorIdx] as number | null) : null)
+        }
+      }
     }
   }
 
@@ -275,7 +403,67 @@ export function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    getVersion().then(setAppVersion).catch(() => {})
+    async function migrateWeightPrecision() {
+      try {
+        const db = await getDb()
+        await db.execute("UPDATE deposit_item SET weight = ROUND(weight, 2) WHERE weight != ROUND(weight, 2)")
+      } catch {
+      }
+    }
+    migrateWeightPrecision()
+  }, [])
+
+  useEffect(() => {
+    async function migrateDepositVendorId() {
+      try {
+        const db = await getDb()
+        await db.execute('ALTER TABLE deposit ADD COLUMN vendor_id INTEGER DEFAULT NULL')
+      } catch {
+      }
+      try {
+        const db = await getDb()
+        await db.execute("UPDATE deposit SET vendor_id = (SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1) WHERE vendor_id IS NULL")
+      } catch {
+      }
+    }
+    migrateDepositVendorId()
+  }, [])
+
+  useEffect(() => {
+    async function migrateDepositItemVendorId() {
+      try {
+        const db = await getDb()
+        const cols = await db.select<{ name: string }[]>("PRAGMA table_info(deposit_item)")
+        const hasVendorId = cols.some(c => c.name === 'vendor_id')
+        if (!hasVendorId) {
+          await db.execute('ALTER TABLE deposit_item ADD COLUMN vendor_id INTEGER DEFAULT NULL')
+        }
+        await db.execute(
+          `UPDATE deposit_item SET vendor_id = (SELECT vendor_id FROM deposit WHERE deposit.id = deposit_item.deposit_id) WHERE vendor_id IS NULL`
+        )
+        await db.execute(
+          "UPDATE deposit_item SET vendor_id = (SELECT id FROM vendor WHERE name = 'Lainnya' LIMIT 1) WHERE vendor_id IS NULL"
+        )
+        const pkCols = await db.select<{ name: string; pk: number }[]>("PRAGMA table_info(deposit_item)")
+        const vendorIdInPk = pkCols.some(c => c.name === 'vendor_id' && c.pk > 0)
+        if (!vendorIdInPk) {
+          await db.execute(`
+            CREATE TABLE deposit_item_new (
+              deposit_id TEXT NOT NULL,
+              category_id TEXT NOT NULL,
+              vendor_id INTEGER NOT NULL,
+              weight REAL NOT NULL,
+              PRIMARY KEY (deposit_id, category_id, vendor_id)
+            )
+          `)
+          await db.execute(`INSERT INTO deposit_item_new (deposit_id, category_id, vendor_id, weight) SELECT deposit_id, category_id, vendor_id, weight FROM deposit_item`)
+          await db.execute(`DROP TABLE deposit_item`)
+          await db.execute(`ALTER TABLE deposit_item_new RENAME TO deposit_item`)
+        }
+      } catch {
+      }
+    }
+    migrateDepositItemVendorId()
   }, [])
 
   // Persist turso config
@@ -353,6 +541,10 @@ export function SettingsPage() {
       for (const table of ["semester_savings", "manifest_item", "vendor_manifest", "deposit_item", "deposit", "event_rate", "event", "category", "member", "vendor"]) {
         await db.execute(`DROP TABLE IF EXISTS ${table}`)
       }
+      for (const sql of RECREATE_TABLES_SQL) {
+        await db.execute(sql)
+      }
+      queryClient.clear()
       setStats(null)
       toast.success("Database berhasil direset.")
     } catch {
@@ -367,6 +559,7 @@ export function SettingsPage() {
     setSeeding(true)
     try {
       await seedBankSampah(opts)
+      queryClient.clear()
       setStats(null)
       toast.success("Data awal berhasil ditambahkan!")
     } catch (err) {

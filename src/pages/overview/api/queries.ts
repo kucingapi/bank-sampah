@@ -40,7 +40,7 @@ export async function getDashboardStats(dateStart?: string, dateEnd?: string): P
 
   // Total weight by unit
   const kgRes = await db.select<{ total: number }[]>(
-    `SELECT SUM(di.weight) as total FROM deposit_item di
+    `SELECT ROUND(SUM(di.weight), 2) as total FROM deposit_item di
      JOIN category c ON di.category_id = c.id
      JOIN deposit d ON di.deposit_id = d.id
      WHERE c.unit = 'kg'${queryExt.replace(' AND', ' AND d.')}`,
@@ -48,7 +48,7 @@ export async function getDashboardStats(dateStart?: string, dateEnd?: string): P
   );
 
   const pcRes = await db.select<{ total: number }[]>(
-    `SELECT SUM(di.weight) as total FROM deposit_item di
+    `SELECT ROUND(SUM(di.weight), 2) as total FROM deposit_item di
      JOIN category c ON di.category_id = c.id
      JOIN deposit d ON di.deposit_id = d.id
      WHERE c.unit = 'pc'${queryExt.replace(' AND', ' AND d.')}`,
@@ -79,7 +79,7 @@ export async function getCategoryBreakdown(dateStart?: string, dateEnd?: string)
       c.id as categoryId, 
       c.name,
       c.unit,
-      SUM(di.weight) as totalWeight
+      ROUND(SUM(di.weight), 2) as totalWeight
     FROM deposit_item di
     JOIN category c ON di.category_id = c.id
     JOIN deposit d ON di.deposit_id = d.id

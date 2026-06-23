@@ -349,16 +349,14 @@ export function VendorReportPage({ eventId }: Props) {
     setCategorySplits(prev => {
       const updated = { ...prev };
       const existing = updated[categoryId] || [];
-      const remainingWeight = item.totalWeight - existing.reduce((sum, s) => sum + s.weight, 0);
-      if (remainingWeight <= 0) return prev;
+      const remainingWeight = parseFloat((item.totalWeight - existing.reduce((sum, s) => sum + s.weight, 0)).toFixed(2));
       const fallbackVendor = item.defaultVendorId ?? defaultVendorIds?.lainnya ?? 0;
-      // If the category's default vendor is already in the splits, use Lainnya
       const vendorToUse = existing.some(s => s.vendorId === fallbackVendor)
         ? (defaultVendorIds?.lainnya ?? 0)
         : fallbackVendor;
       updated[categoryId] = [
         ...existing,
-        { vendorId: vendorToUse, weight: remainingWeight, outboundRate: item.outboundRate }
+        { vendorId: vendorToUse, weight: Math.max(0, remainingWeight), outboundRate: item.outboundRate }
       ];
       return updated;
     });
@@ -444,7 +442,7 @@ export function VendorReportPage({ eventId }: Props) {
     return categoryItems.length > 0 && categoryItems.every(item => {
       const splits = categorySplits[item.categoryId];
       if (!splits || splits.length === 0) return false;
-      const totalSplitWeight = splits.reduce((sum, s) => sum + s.weight, 0);
+      const totalSplitWeight = parseFloat(splits.reduce((sum, s) => sum + s.weight, 0).toFixed(2));
       return Math.abs(totalSplitWeight - item.totalWeight) < 0.01;
     });
   }, [categoryItems, categorySplits]);
@@ -454,9 +452,9 @@ export function VendorReportPage({ eventId }: Props) {
     categoryItems.forEach(item => {
       const splits = categorySplits[item.categoryId];
       if (!splits) return;
-      const totalSplitWeight = splits.reduce((sum, s) => sum + s.weight, 0);
+      const totalSplitWeight = parseFloat(splits.reduce((sum, s) => sum + s.weight, 0).toFixed(2));
       if (Math.abs(totalSplitWeight - item.totalWeight) > 0.01) {
-        errors.push(`${item.name}: ${totalSplitWeight.toFixed(2)} / ${item.totalWeight} ${item.unit} (selisih ${Math.abs(totalSplitWeight - item.totalWeight).toFixed(2)})`);
+        errors.push(`${item.name}: ${totalSplitWeight.toFixed(2)} / ${item.totalWeight.toFixed(2)} ${item.unit} (selisih ${Math.abs(totalSplitWeight - item.totalWeight).toFixed(2)})`);
       }
     });
     return errors;
@@ -466,7 +464,7 @@ export function VendorReportPage({ eventId }: Props) {
   const grandTotalSellPayout = categoryItems.reduce((sum, item) => sum + item.totalSellPayout, 0);
   
   const summaryText = useMemo(() => {
-    const kgTotal = categoryItems.filter(i => i.unit === 'kg').reduce((sum, i) => sum + i.totalWeight, 0);
+    const kgTotal = parseFloat(categoryItems.filter(i => i.unit === 'kg').reduce((sum, i) => sum + i.totalWeight, 0).toFixed(2));
     const pcItems = categoryItems.filter(i => i.unit === 'pc');
     
     const parts: string[] = [];
@@ -634,7 +632,7 @@ export function VendorReportPage({ eventId }: Props) {
             ) : (
               categoryItems.map(item => {
                 const splits = categorySplits[item.categoryId] || [];
-                const totalSplitWeight = splits.reduce((sum, s) => sum + s.weight, 0);
+                const totalSplitWeight = parseFloat(splits.reduce((sum, s) => sum + s.weight, 0).toFixed(2));
                 const hasError = Math.abs(totalSplitWeight - item.totalWeight) > 0.01;
                 const isExpanded = expandedCategories.has(item.categoryId);
 
@@ -652,7 +650,7 @@ export function VendorReportPage({ eventId }: Props) {
                           {hasError && (
                             <span className="text-orange-500 text-xs ml-2 font-normal flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" />
-                              {totalSplitWeight.toFixed(2)} / {item.totalWeight} {item.unit}
+                              {totalSplitWeight.toFixed(2)} / {item.totalWeight.toFixed(2)} {item.unit}
                             </span>
                           )}
                           {splits.length > 1 && !hasError && (
@@ -661,7 +659,7 @@ export function VendorReportPage({ eventId }: Props) {
                         </button>
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">
-                        {item.totalWeight} {item.unit}
+                        {item.totalWeight.toFixed(2)} {item.unit}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatCurrency(item.totalPayout)}
