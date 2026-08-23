@@ -20,6 +20,13 @@ if (Test-Path $DEPLOY_DIR) {
 }
 New-Item -ItemType Directory -Path $DEPLOY_DIR -Force | Out-Null
 
+# Copy _headers for cache control
+$HEADERS_SRC = Join-Path $PROJECT_ROOT "scripts\_headers"
+if (Test-Path $HEADERS_SRC) {
+    Copy-Item $HEADERS_SRC -Destination $DEPLOY_DIR
+    Write-Host "Copied: _headers" -ForegroundColor Green
+}
+
 # Read version from tauri.conf.json
 $CONF = Get-Content $TAURI_CONF | ConvertFrom-Json
 $VERSION = $CONF.version

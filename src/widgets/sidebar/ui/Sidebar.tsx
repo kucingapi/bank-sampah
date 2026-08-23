@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { LayoutDashboard, Users, Tags, Calendar, Circle, Truck, Moon, Sun, Wallet, Settings } from "lucide-react"
 import { APP_NAME } from "@/shared/config"
 import { Button } from "@/shared/ui/ui/button"
@@ -5,6 +6,8 @@ import { ThemeSwitch } from "@/shared/ui/ui/theme-switch"
 import { cn } from "@/shared/lib/utils"
 import { useActiveEvent } from "@/entities/event/api/hooks"
 import { useTheme } from "@/shared/context/theme-context"
+import { getVersion } from "@tauri-apps/api/app"
+import { isTauri } from "@tauri-apps/api/core"
 
 interface SidebarProps {
   activeView: string
@@ -14,6 +17,13 @@ interface SidebarProps {
 export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   const activeEvent = useActiveEvent()
   const { theme, toggleTheme } = useTheme()
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isTauri()) {
+      getVersion().then(setAppVersion).catch(() => {})
+    }
+  }, [])
 
   const handleActiveSessionClick = () => {
     if (activeEvent) {
@@ -115,7 +125,9 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
       )}
 
       <div className="p-4 border-t border-border">
-        <p className="text-xs text-muted-foreground/60 mb-2">v0.2.5</p>
+        <p className="text-xs text-muted-foreground/60 mb-2">
+          {appVersion ? `v${appVersion}` : "v0.2.6"}
+        </p>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {theme === 'light' ? (
